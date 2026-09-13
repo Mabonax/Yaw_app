@@ -7,6 +7,8 @@ import '../core/config/app_config.dart';
 import '../core/storage/token_store.dart';
 import '../features/aircraft/data/aircraft_repository.dart';
 import '../features/aircraft/presentation/aircraft_controller.dart';
+import '../features/missions/data/mission_repository.dart';
+import '../features/missions/presentation/mission_controller.dart';
 import 'router/yaw_router.dart';
 import 'theme/yaw_theme.dart';
 
@@ -15,6 +17,7 @@ class YawApp extends StatelessWidget {
     super.key,
     required this.authController,
     required this.aircraftController,
+    required this.missionController,
   });
 
   factory YawApp.create() {
@@ -34,11 +37,15 @@ class YawApp extends StatelessWidget {
       aircraftController: AircraftController(
         repository: AircraftRepository(apiClient: apiClient),
       ),
+      missionController: MissionController(
+        repository: MissionRepository(apiClient: apiClient),
+      ),
     );
   }
 
   final AuthController authController;
   final AircraftController aircraftController;
+  final MissionController missionController;
 
   @override
   Widget build(BuildContext context) {
@@ -49,6 +56,7 @@ class YawApp extends StatelessWidget {
       home: YawRouter(
         authController: authController,
         aircraftController: aircraftController,
+        missionController: missionController,
       ),
     );
   }

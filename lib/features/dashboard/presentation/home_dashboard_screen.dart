@@ -5,6 +5,7 @@ import '../../../core/auth/auth_controller.dart';
 import '../../../core/auth/auth_models.dart';
 import '../../../core/widgets/yaw_widgets.dart';
 import '../../aircraft/presentation/aircraft_controller.dart';
+import '../../missions/presentation/mission_controller.dart';
 import '../../pilot/presentation/pilot_profile_screen.dart';
 
 class HomeDashboardScreen extends StatefulWidget {
@@ -12,10 +13,12 @@ class HomeDashboardScreen extends StatefulWidget {
     super.key,
     required this.authController,
     required this.aircraftController,
+    required this.missionController,
   });
 
   final AuthController authController;
   final AircraftController aircraftController;
+  final MissionController missionController;
 
   @override
   State<HomeDashboardScreen> createState() => _HomeDashboardScreenState();
@@ -28,6 +31,9 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
     if (widget.aircraftController.state.status == AircraftLoadStatus.idle) {
       widget.aircraftController.loadAircraft();
     }
+    if (widget.missionController.state.status == MissionLoadStatus.idle) {
+      widget.missionController.loadMissions();
+    }
   }
 
   @override
@@ -36,6 +42,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
       listenable: Listenable.merge([
         widget.authController,
         widget.aircraftController,
+        widget.missionController,
       ]),
       builder: (context, _) {
         final state = widget.authController.state;
@@ -46,6 +53,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
             await Future.wait([
               widget.authController.refreshIdentityContext(),
               widget.aircraftController.loadAircraft(refresh: true),
+              widget.missionController.loadMissions(refresh: true),
             ]);
           },
           child: ListView(
@@ -92,6 +100,11 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
               _AircraftOperationalSummary(
                 state: widget.aircraftController.state,
                 onRetry: widget.aircraftController.loadAircraft,
+              ),
+              const SizedBox(height: YawSpacing.lg),
+              _MissionOperationalSummary(
+                state: widget.missionController.state,
+                onRetry: widget.missionController.loadMissions,
               ),
             ],
           ),
@@ -300,6 +313,79 @@ class _AircraftOperationalSummary extends StatelessWidget {
           _DashboardMetric(
             label: 'Blocked',
             value: '${state.blockedAircraft}',
+            icon: Icons.block_outlined,
+            tone: YawStatusTone.critical,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MissionOperationalSummary extends StatelessWidget {
+  const _MissionOperationalSummary({
+    required this.state,
+    required this.onRetry,
+  });
+
+  final MissionState state;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    if (state.status == MissionLoadStatus.loading ||
+        state.status == MissionLoadStatus.idle) {
+      return const YawLoadingState(message: 'Loading mission compliance...');
+    }
+
+    if (state.status == MissionLoadStatus.failure) {
+      return YawErrorState(
+        title: 'Mission summary unavailable',
+        message: state.errorMessage ?? 'Missions could not be loaded.',
+        action: YawSecondaryButton(
+          label: 'Retry',
+          icon: Icons.refresh,
+          onPressed: onRetry,
+        ),
+      );
+    }
+
+    if (state.status == MissionLoadStatus.empty) {
+      return const YawEmptyState(
+        title: 'No missions available',
+        message:
+            'No mission records were returned for this authenticated account.',
+      );
+    }
+
+    return YawSectionCard(
+      title: 'Mission compliance',
+      subtitle: 'Counts are derived from /api/v1/missions compliance results.',
+      child: Wrap(
+        spacing: YawSpacing.md,
+        runSpacing: YawSpacing.md,
+        children: [
+          _DashboardMetric(
+            label: 'Missions',
+            value: '${state.totalMissions}',
+            icon: Icons.route_outlined,
+            tone: YawStatusTone.info,
+          ),
+          _DashboardMetric(
+            label: 'Ready',
+            value: '${state.readyMissions}',
+            icon: Icons.check_circle_outline,
+            tone: YawStatusTone.healthy,
+          ),
+          _DashboardMetric(
+            label: 'Warning',
+            value: '${state.warningMissions}',
+            icon: Icons.warning_amber_outlined,
+            tone: YawStatusTone.warning,
+          ),
+          _DashboardMetric(
+            label: 'Blocked',
+            value: '${state.blockedMissions}',
             icon: Icons.block_outlined,
             tone: YawStatusTone.critical,
           ),

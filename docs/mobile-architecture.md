@@ -184,3 +184,33 @@ YawApp.create
 ```
 
 The aircraft feature follows the M1 state-management pattern: API access stays in the repository, loading/error/selection state stays in a `ChangeNotifier`, and widgets render only state supplied by the controller. Readiness remains server-authoritative; Flutter only groups and displays the status values already returned by the API.
+
+## M3 Update - Mission Feature Structure
+
+Added feature folder:
+
+```text
+features/missions/
+  data/
+    mission_models.dart
+    mission_repository.dart
+  presentation/
+    mission_controller.dart
+    mission_screens.dart
+```
+
+Runtime dependency flow:
+
+```text
+YawApp.create
+-> ApiClient
+-> MissionRepository
+-> MissionController
+-> YawRouter
+-> AppShell
+-> HomeDashboardScreen, MissionListScreen, MissionComplianceOverviewScreen
+```
+
+Mission state follows the established M1/M2 pattern: repository methods call only API V1 routes, `MissionController` owns list/detail/compliance/release state, and UI widgets render the backend-provided compliance contract. Mission lifecycle values are typed from the backend enum: `draft`, `planning`, `compliance_review`, `awaiting_approval`, `approved`, `ready_for_flight`, `in_progress`, `completed`, `post_flight_review`, `closed`, and `cancelled`.
+
+Release architecture remains read-only in mobile until an API V1 route exists. The UI can show release readiness and blockers, but it does not call Laravel web routes or implement release rules locally.

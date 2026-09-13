@@ -160,3 +160,26 @@ Remaining M2 backend gaps:
 - Dedicated battery/component detail routes are not exposed in API V1, but M2 uses the embedded aircraft detail payload where available.
 
 Next recommended phase: M3 Missions + Compliance + Release using the existing mission and mission-compliance API routes, while recording release as an API gap until the backend exposes it.
+
+## Phase M3 - Missions + Compliance + Release
+
+Completed in this pass:
+
+- Mission list from `/api/v1/missions`.
+- Mission detail from `/api/v1/missions/{mission}`.
+- Mission compliance model/repository support for `/api/v1/missions/{mission}/compliance`.
+- Mission lifecycle enum mapping from the backend enum.
+- Mission Detail hierarchy for header, overview, aircraft, compliance, release readiness, and planning gaps.
+- Mission aircraft context reuses the M2 aircraft repository/controller for navigation to Aircraft Detail.
+- Compliance tab now surfaces mission compliance attention and aircraft readiness context.
+- Home dashboard now shows mission compliance counts from loaded mission data.
+- Tests for mission DTO parsing, repository routes/errors, controller states, release API gap handling, and widgets.
+
+Remaining M3 backend gaps:
+
+- API V1 mission release route is not exposed.
+- API V1 mission create/update/planning routes are not exposed.
+- API V1 mission option endpoints for operator/aircraft/pilot/location selection are not exposed.
+- API V1 pre-flight checklist and defect workflows are not exposed.
+
+Next recommended phase remains M4: Mission Execution + Post-flight Close-out + Pilot Logbook + Aircraft Folio + Defects. The existing post-flight propagation API can be used there, but mission completion, checklist capture, logbook, folio, and defects still need careful backend API verification before mobile writes.

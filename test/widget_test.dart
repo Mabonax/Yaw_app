@@ -12,6 +12,8 @@ import 'package:yaw_app/core/auth/auth_repository.dart';
 import 'package:yaw_app/core/storage/token_store.dart';
 import 'package:yaw_app/features/aircraft/data/aircraft_repository.dart';
 import 'package:yaw_app/features/aircraft/presentation/aircraft_controller.dart';
+import 'package:yaw_app/features/missions/data/mission_repository.dart';
+import 'package:yaw_app/features/missions/presentation/mission_controller.dart';
 import 'package:yaw_app/features/pilot/presentation/pilot_profile_screen.dart';
 
 void main() {
@@ -145,6 +147,9 @@ YawApp _appWithToken(
     aircraftController: AircraftController(
       repository: AircraftRepository(apiClient: apiClient),
     ),
+    missionController: MissionController(
+      repository: MissionRepository(apiClient: apiClient),
+    ),
   );
 }
 
@@ -166,6 +171,18 @@ Future<http.Response> _defaultHandler(http.Request request) async {
     return _ok({
       'operators': [AuthFixtures.operatorJson()],
     });
+  }
+  if (request.url.path.endsWith('/missions')) {
+    return _ok({'missions': []});
+  }
+  if (request.url.path.endsWith('/aircraft')) {
+    return _ok({'aircraft': []});
+  }
+  if (request.url.path.endsWith('/missions')) {
+    return _ok({'missions': []});
+  }
+  if (request.url.path.endsWith('/aircraft')) {
+    return _ok({'aircraft': []});
   }
   if (request.url.path.endsWith('/me')) {
     return _ok({

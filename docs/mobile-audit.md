@@ -152,3 +152,24 @@ Confirmed API boundary:
 
 - Backend services support physical aircraft creation and package instantiation through `CreatePhysicalAircraft` and `InstantiateAircraftPackage`.
 - API V1 does not expose a mobile `POST /api/v1/aircraft` onboarding route, so M2 does not implement mobile aircraft creation.
+
+## M3 Update - Mission Planning Context, Compliance, and Release Readiness
+
+Completed in M3:
+
+- `GET /api/v1/missions` now drives the Missions tab list.
+- `GET /api/v1/missions/{mission}` now drives Mission Detail.
+- `GET /api/v1/missions/{mission}/compliance` is represented in the repository and used by detail state.
+- Mission list/detail display the backend mission presenter fields: mission number, purpose, project, location, operator, pilot, aircraft, planned dates, lifecycle state, release gate state, and compliance.
+- Mission compliance displays the backend `MissionComplianceSummary` contract: `status`, `label`, `blocking_count`, `warning_count`, `controls`, and `evaluated_at`.
+- Compliance controls are rendered dynamically from the server contract and include aircraft readiness, pilot readiness, operator compliance, geometry/airspace, checklist, approvals, and risk assessment when returned.
+- Mission aircraft context links into the M2 aircraft detail flow and does not recompute aircraft readiness in Flutter.
+- Home dashboard now shows mission compliance counts derived from already-loaded `/api/v1/missions` data.
+- Compliance tab now aggregates server-provided mission compliance attention and M2 aircraft readiness counts.
+
+Confirmed API boundary:
+
+- API V1 exposes mission list, mission detail, mission compliance, and post-flight propagation routes.
+- API V1 does not expose `POST /api/v1/missions/{mission}/release`; the existing release action is a Laravel web route using `ReleaseMission`.
+- API V1 does not expose mission creation or update/planning routes; the existing backend web request is `StoreMissionRequest`.
+- Flutter presents release readiness and the missing release API state; Laravel remains authoritative for release decisions.
