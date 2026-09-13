@@ -118,3 +118,24 @@ Add after core workflows are stable:
 ## Recommended Next Slice
 
 Phase M1: wire real authentication and current user/pilot/operator fetches into the existing shell, then replace placeholder shell copy with backend-backed account context.
+## Phase M1 - Authentication + User/Pilot
+
+Completed in this pass:
+
+- Backend-connected login/logout.
+- Secure bearer token persistence.
+- Stored-token session restoration.
+- Current user fetch from `/api/v1/me`.
+- Pilot context fetch from `/api/v1/me/pilot`.
+- Operator context fetch from `/api/v1/me/operators`.
+- Authenticated Home identity summary.
+- Pilot Profile screen using backend-presented fields.
+- More/Profile actions for refresh and logout.
+- YAW branding assets registered and applied.
+
+Remaining M1 backend gaps:
+
+- Mobile pilot profile create/update endpoints are not exposed in API V1.
+- Account settings update endpoint is not exposed in API V1.
+
+Next recommended phase remains M2: Aircraft + Readiness using the existing aircraft and aircraft-catalogue API routes.

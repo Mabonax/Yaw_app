@@ -120,3 +120,39 @@ This keeps the shell concise while the backend API surface matures.
 - Add typed data models per API response as each feature is implemented.
 - Add feature repositories only when a feature starts calling the backend.
 - Add offline/resilience services after M1-M4 core workflows are concrete.
+
+## M1 Update - Authenticated Session State
+
+The authenticated session is now represented by one `AuthController` state containing:
+
+- `YawUser`
+- nullable `YawPilotProfile`
+- `List<YawOperatorContext>`
+- authentication status
+- context loading status
+- authentication and context error messages
+
+Session restoration flow:
+
+```text
+Launch
+-> read secure token
+-> no token: Login
+-> token exists: load /me, /me/pilot, /me/operators
+-> valid context: authenticated shell
+-> 401: clear token and return to Login with an expired-session message
+-> network/server/malformed response: show a safe user-facing error
+```
+
+The API base URL remains configured through:
+
+```text
+--dart-define=YAW_API_BASE_URL=<url>
+```
+
+Development examples:
+
+- Android emulator to Laravel on host: `http://10.0.2.2:8000/api/v1`
+- Windows desktop local server: `http://127.0.0.1:8000/api/v1`
+- Physical devices: use a reachable LAN/Tailscale HTTPS or HTTP development URL configured at run time.
+- Production: provide the production API URL through build or release configuration; do not commit secrets or private network addresses.

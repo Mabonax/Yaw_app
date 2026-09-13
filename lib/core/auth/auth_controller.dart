@@ -11,32 +11,57 @@ class AuthState {
   const AuthState({
     required this.status,
     this.user,
+    this.pilot,
+    this.operators = const [],
     this.errorMessage,
     this.fieldErrors,
     this.isSubmitting = false,
+    this.isContextLoading = false,
+    this.contextErrorMessage,
   });
 
   const AuthState.bootstrapping() : this(status: AuthStatus.bootstrapping);
 
   final AuthStatus status;
   final YawUser? user;
+  final YawPilotProfile? pilot;
+  final List<YawOperatorContext> operators;
   final String? errorMessage;
   final Map<String, List<String>>? fieldErrors;
   final bool isSubmitting;
+  final bool isContextLoading;
+  final String? contextErrorMessage;
+
+  bool get isAuthenticated =>
+      status == AuthStatus.authenticated && user != null;
+  bool get hasPilotProfile => pilot != null;
+  bool get hasOperators => operators.isNotEmpty;
 
   AuthState copyWith({
     AuthStatus? status,
     YawUser? user,
+    YawPilotProfile? pilot,
+    List<YawOperatorContext>? operators,
     String? errorMessage,
     Map<String, List<String>>? fieldErrors,
     bool? isSubmitting,
+    bool? isContextLoading,
+    String? contextErrorMessage,
+    bool clearPilot = false,
+    bool clearErrors = false,
   }) {
     return AuthState(
       status: status ?? this.status,
       user: user ?? this.user,
-      errorMessage: errorMessage,
-      fieldErrors: fieldErrors,
+      pilot: clearPilot ? null : pilot ?? this.pilot,
+      operators: operators ?? this.operators,
+      errorMessage: clearErrors ? null : errorMessage ?? this.errorMessage,
+      fieldErrors: clearErrors ? null : fieldErrors ?? this.fieldErrors,
       isSubmitting: isSubmitting ?? this.isSubmitting,
+      isContextLoading: isContextLoading ?? this.isContextLoading,
+      contextErrorMessage: clearErrors
+          ? null
+          : contextErrorMessage ?? this.contextErrorMessage,
     );
   }
 }
@@ -56,38 +81,88 @@ class AuthController extends ChangeNotifier {
   AuthState get state => _state;
 
   Future<void> bootstrap() async {
-    final token = await _tokenStore.readToken();
-    _state = token == null
-        ? const AuthState(status: AuthStatus.unauthenticated)
-        : const AuthState(
-            status: AuthStatus.authenticated,
-            user: YawUser(id: 0, name: 'YAW operator', email: ''),
-          );
+    _state = const AuthState.bootstrapping();
     notifyListeners();
+
+    final token = await _tokenStore.readToken();
+    if (token == null || token.isEmpty) {
+      _state = const AuthState(status: AuthStatus.unauthenticated);
+      notifyListeners();
+      return;
+    }
+
+    await _restoreStoredSession();
   }
 
   Future<bool> login({required String email, required String password}) async {
+    if (_state.isSubmitting) {
+      return false;
+    }
+
     _state = _state.copyWith(
       status: AuthStatus.unauthenticated,
       isSubmitting: true,
+      clearErrors: true,
     );
     notifyListeners();
 
     try {
-      final session = await _repository.login(email: email, password: password);
-      await _tokenStore.saveToken(session.token);
-      _state = AuthState(status: AuthStatus.authenticated, user: session.user);
+      await _repository
+          .login(email: email, password: password)
+          .then((session) => _tokenStore.saveToken(session.token));
+      final context = await _repository.loadIdentityContext();
+      _state = _authenticatedState(context);
       notifyListeners();
       return true;
     } on ApiException catch (error) {
       _state = AuthState(
         status: AuthStatus.failure,
-        errorMessage: error.message,
+        errorMessage: _messageForApiError(error),
         fieldErrors: error.errors,
       );
       notifyListeners();
       return false;
+    } on FormatException {
+      _state = const AuthState(
+        status: AuthStatus.failure,
+        errorMessage: 'The YAW service returned an unexpected response.',
+      );
+      notifyListeners();
+      return false;
     }
+  }
+
+  Future<void> refreshIdentityContext() async {
+    if (!_state.isAuthenticated) {
+      return;
+    }
+
+    _state = _state.copyWith(isContextLoading: true, clearErrors: true);
+    notifyListeners();
+
+    try {
+      final context = await _repository.loadIdentityContext();
+      _state = _authenticatedState(context);
+    } on ApiException catch (error) {
+      if (error.type == ApiExceptionType.unauthorized) {
+        await _clearSessionWithMessage(
+          'Your session has expired. Please sign in again.',
+        );
+        return;
+      }
+
+      _state = _state.copyWith(
+        isContextLoading: false,
+        contextErrorMessage: _messageForApiError(error),
+      );
+    } on FormatException {
+      _state = _state.copyWith(
+        isContextLoading: false,
+        contextErrorMessage: 'The YAW service returned an unexpected response.',
+      );
+    }
+
+    notifyListeners();
   }
 
   Future<void> logout() async {
@@ -100,5 +175,64 @@ class AuthController extends ChangeNotifier {
       _state = const AuthState(status: AuthStatus.unauthenticated);
       notifyListeners();
     }
+  }
+
+  Future<void> _restoreStoredSession() async {
+    try {
+      final context = await _repository.loadIdentityContext();
+      _state = _authenticatedState(context);
+    } on ApiException catch (error) {
+      if (error.type == ApiExceptionType.unauthorized) {
+        await _clearSessionWithMessage(
+          'Your session has expired. Please sign in again.',
+        );
+        return;
+      }
+
+      _state = AuthState(
+        status: AuthStatus.failure,
+        errorMessage: _messageForApiError(error),
+      );
+    } on FormatException {
+      _state = const AuthState(
+        status: AuthStatus.failure,
+        errorMessage: 'The YAW service returned an unexpected response.',
+      );
+    }
+
+    notifyListeners();
+  }
+
+  AuthState _authenticatedState(IdentityContext context) {
+    return AuthState(
+      status: AuthStatus.authenticated,
+      user: context.user,
+      pilot: context.pilot,
+      operators: context.operators,
+    );
+  }
+
+  Future<void> _clearSessionWithMessage(String message) async {
+    await _tokenStore.clear();
+    _state = AuthState(status: AuthStatus.failure, errorMessage: message);
+    notifyListeners();
+  }
+
+  String _messageForApiError(ApiException error) {
+    return switch (error.type) {
+      ApiExceptionType.validation => error.message,
+      ApiExceptionType.unauthorized =>
+        'Your session has expired. Please sign in again.',
+      ApiExceptionType.forbidden =>
+        'Your account cannot access this YAW resource.',
+      ApiExceptionType.notFound =>
+        'The requested YAW resource could not be found.',
+      ApiExceptionType.timeout => 'The YAW service took too long to respond.',
+      ApiExceptionType.connectivity =>
+        'The YAW service is unavailable. Check your connection or API URL.',
+      ApiExceptionType.server => 'The YAW service encountered a server error.',
+      ApiExceptionType.unknown =>
+        'The YAW service returned an unexpected response.',
+    };
   }
 }

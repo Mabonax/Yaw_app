@@ -116,3 +116,21 @@ Implemented a production foundation without building every feature screen:
 - Login, splash, authenticated shell, dashboard shell, More screen.
 - Reusable YAW widgets.
 - Foundation tests.
+
+## M1 Update - Authentication and Identity Context
+
+Completed in M1:
+
+- Real login against `POST /api/v1/auth/login`.
+- Stored-token session restoration by verifying `/api/v1/me` and loading context.
+- Current user model from `/api/v1/me`.
+- Pilot profile model from `/api/v1/me/pilot`.
+- Operator context model from `/api/v1/me/operators`.
+- Authenticated Home now shows real user, pilot, and operator context.
+- More/Profile area now exposes My Pilot Profile, My Operators, Refresh account context, and Logout.
+- Pilot Profile screen renders only fields exposed by the backend presenter.
+- Supplied YAW assets are registered and used for Splash, Login, App Shell, and More/Profile header.
+
+Additional backend gap confirmed:
+
+- `/api/v1/me/pilot` is read-only and can return `pilot: null`; no mobile self-service create/update pilot profile endpoint was found in API V1.

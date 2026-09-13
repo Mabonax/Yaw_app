@@ -38,3 +38,12 @@ Verified API V1 routes in `C:\xampp\htdocs\myaviation\routes\api.php`:
 ## Implementation Rule
 
 Until these endpoints exist, the Flutter app must show explicit empty/gap states or hide production workflows. Do not use fake compliance, readiness, or regulatory results as if they came from the backend.
+
+## M1 Confirmed Gaps
+
+| Required mobile capability | Backend domain | Existing web/backend functionality | Missing API endpoint | Suggested method | Suggested route | Expected request | Expected response | Priority |
+| -------------------------- | -------------- | ---------------------------------- | -------------------- | ---------------- | --------------- | ---------------- | ----------------- | -------- |
+| Mobile pilot profile self-service | Pilots | Web/self pilot profile actions exist outside API V1 | Create current user's pilot profile | POST | `/api/v1/me/pilot` | pilot profile fields matching backend validation | created pilot profile presenter | High |
+| Mobile pilot profile update | Pilots | Web/self pilot update actions exist outside API V1 | Update current user's pilot profile | PATCH | `/api/v1/me/pilot` | allowed editable pilot fields | updated pilot profile presenter | High |
+
+M1 implementation handles `pilot: null` as a useful pilot-profile-required state instead of treating it as a crash.

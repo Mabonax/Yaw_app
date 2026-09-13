@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/auth/auth_controller.dart';
+import '../../../core/branding/yaw_logo.dart';
 import '../../../core/widgets/yaw_widgets.dart';
 import '../../dashboard/presentation/home_dashboard_screen.dart';
 import 'more_screen.dart';
@@ -24,7 +25,16 @@ class _AppShellState extends State<AppShell> {
     return YawScaffold(
       appBar: YawAppBar(
         title: _titles[_selectedIndex],
+        leading: const Padding(
+          padding: EdgeInsets.all(10),
+          child: YawLogo(variant: YawLogoVariant.icon),
+        ),
         actions: [
+          IconButton(
+            tooltip: 'Refresh account context',
+            onPressed: widget.authController.refreshIdentityContext,
+            icon: const Icon(Icons.refresh),
+          ),
           IconButton(
             tooltip: 'Sign out',
             onPressed: widget.authController.logout,
@@ -34,27 +44,27 @@ class _AppShellState extends State<AppShell> {
       ),
       body: IndexedStack(
         index: _selectedIndex,
-        children: const [
-          HomeDashboardScreen(),
-          _ModuleShell(
+        children: [
+          HomeDashboardScreen(authController: widget.authController),
+          const _ModuleShell(
             title: 'Missions',
             message:
-                'Mission list and compliance detail can be wired to /api/v1/missions.',
+                'Mission list and compliance detail can be wired to /api/v1/missions in M3.',
             icon: Icons.route,
           ),
-          _ModuleShell(
+          const _ModuleShell(
             title: 'Aircraft',
             message:
-                'Aircraft and aircraft catalogue APIs are available for the next slice.',
+                'Aircraft and aircraft catalogue APIs are available for the M2 slice.',
             icon: Icons.airplanemode_active,
           ),
-          _ModuleShell(
+          const _ModuleShell(
             title: 'Compliance',
             message:
-                'Mission compliance exists by mission. Broader compliance endpoints are backend gaps.',
+                'Mission compliance exists by mission. Broader compliance endpoints remain backend gaps.',
             icon: Icons.fact_check_outlined,
           ),
-          MoreScreen(),
+          MoreScreen(authController: widget.authController),
         ],
       ),
       bottomNavigationBar: BottomNavigationBar(

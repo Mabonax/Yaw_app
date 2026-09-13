@@ -25,17 +25,18 @@ class YawScaffold extends StatelessWidget {
 }
 
 class YawAppBar extends StatelessWidget implements PreferredSizeWidget {
-  const YawAppBar({super.key, required this.title, this.actions});
+  const YawAppBar({super.key, required this.title, this.actions, this.leading});
 
   final String title;
   final List<Widget>? actions;
+  final Widget? leading;
 
   @override
   Size get preferredSize => const Size.fromHeight(kToolbarHeight);
 
   @override
   Widget build(BuildContext context) =>
-      AppBar(title: Text(title), actions: actions);
+      AppBar(leading: leading, title: Text(title), actions: actions);
 }
 
 class YawCard extends StatelessWidget {

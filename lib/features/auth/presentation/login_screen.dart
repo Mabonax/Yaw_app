@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../app/theme/yaw_tokens.dart';
 import '../../../core/auth/auth_controller.dart';
+import '../../../core/branding/yaw_logo.dart';
 import '../../../core/widgets/yaw_widgets.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -51,12 +52,13 @@ class _LoginScreenState extends State<LoginScreen> {
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Icon(
-                                Icons.flight_takeoff,
-                                color: YawColors.aviationBlue,
-                                size: 48,
+                              const Center(
+                                child: YawLogo(
+                                  variant: YawLogoVariant.horizontal,
+                                  height: 72,
+                                ),
                               ),
-                              const SizedBox(height: YawSpacing.lg),
+                              const SizedBox(height: YawSpacing.xxl),
                               Text(
                                 'Sign in to YAW',
                                 textAlign: TextAlign.center,
@@ -74,7 +76,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               const SizedBox(height: YawSpacing.xxl),
                               if (state.errorMessage != null) ...[
                                 YawErrorState(
-                                  title: 'Sign-in failed',
+                                  title: 'Sign-in unavailable',
                                   message: state.errorMessage!,
                                 ),
                                 const SizedBox(height: YawSpacing.lg),
@@ -99,7 +101,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 label: 'Sign in',
                                 icon: Icons.login,
                                 isLoading: state.isSubmitting,
-                                onPressed: _submit,
+                                onPressed: state.isSubmitting ? null : _submit,
                               ),
                             ],
                           ),
