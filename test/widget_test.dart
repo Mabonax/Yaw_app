@@ -10,6 +10,8 @@ import 'package:yaw_app/core/auth/auth_controller.dart';
 import 'package:yaw_app/core/auth/auth_models.dart';
 import 'package:yaw_app/core/auth/auth_repository.dart';
 import 'package:yaw_app/core/storage/token_store.dart';
+import 'package:yaw_app/features/aircraft/data/aircraft_repository.dart';
+import 'package:yaw_app/features/aircraft/presentation/aircraft_controller.dart';
 import 'package:yaw_app/features/pilot/presentation/pilot_profile_screen.dart';
 
 void main() {
@@ -139,6 +141,9 @@ YawApp _appWithToken(
     authController: AuthController(
       repository: AuthRepository(apiClient: apiClient),
       tokenStore: tokenStore,
+    ),
+    aircraftController: AircraftController(
+      repository: AircraftRepository(apiClient: apiClient),
     ),
   );
 }

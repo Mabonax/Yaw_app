@@ -139,3 +139,24 @@ Remaining M1 backend gaps:
 - Account settings update endpoint is not exposed in API V1.
 
 Next recommended phase remains M2: Aircraft + Readiness using the existing aircraft and aircraft-catalogue API routes.
+
+## Phase M2 - Aircraft + Readiness
+
+Completed in this pass:
+
+- Fleet list from `/api/v1/aircraft`.
+- Aircraft detail from `/api/v1/aircraft/{aircraft}`.
+- Catalogue list/search from `/api/v1/aircraft-catalogue`.
+- Catalogue detail from `/api/v1/aircraft-catalogue/{aircraftModel}`.
+- Server-provided aircraft readiness display.
+- Server-provided package instantiation state, battery list, and component list display.
+- Dashboard aircraft readiness counts derived from the aircraft endpoint.
+- Tests for aircraft DTO parsing, repository routes, controller state, and widget rendering.
+
+Remaining M2 backend gaps:
+
+- Mobile physical aircraft onboarding route is not exposed in API V1.
+- Mobile physical aircraft update route is not exposed in API V1.
+- Dedicated battery/component detail routes are not exposed in API V1, but M2 uses the embedded aircraft detail payload where available.
+
+Next recommended phase: M3 Missions + Compliance + Release using the existing mission and mission-compliance API routes, while recording release as an API gap until the backend exposes it.

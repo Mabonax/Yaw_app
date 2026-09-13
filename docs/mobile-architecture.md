@@ -156,3 +156,31 @@ Development examples:
 - Windows desktop local server: `http://127.0.0.1:8000/api/v1`
 - Physical devices: use a reachable LAN/Tailscale HTTPS or HTTP development URL configured at run time.
 - Production: provide the production API URL through build or release configuration; do not commit secrets or private network addresses.
+
+## M2 Update - Aircraft Feature Structure
+
+Added feature folder:
+
+```text
+features/aircraft/
+  data/
+    aircraft_models.dart
+    aircraft_repository.dart
+  presentation/
+    aircraft_controller.dart
+    aircraft_screens.dart
+```
+
+Runtime dependency flow:
+
+```text
+YawApp.create
+-> ApiClient
+-> AircraftRepository
+-> AircraftController
+-> YawRouter
+-> AppShell
+-> HomeDashboardScreen and AircraftListScreen
+```
+
+The aircraft feature follows the M1 state-management pattern: API access stays in the repository, loading/error/selection state stays in a `ChangeNotifier`, and widgets render only state supplied by the controller. Readiness remains server-authoritative; Flutter only groups and displays the status values already returned by the API.

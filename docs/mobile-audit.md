@@ -134,3 +134,21 @@ Completed in M1:
 Additional backend gap confirmed:
 
 - `/api/v1/me/pilot` is read-only and can return `pilot: null`; no mobile self-service create/update pilot profile endpoint was found in API V1.
+
+## M2 Update - Aircraft, Catalogue, Package, and Readiness
+
+Completed in M2:
+
+- `GET /api/v1/aircraft` now drives the Aircraft tab fleet list.
+- `GET /api/v1/aircraft/{aircraft}` now drives the physical aircraft detail screen.
+- `GET /api/v1/aircraft-catalogue` now drives catalogue browsing and search.
+- `GET /api/v1/aircraft-catalogue/{aircraftModel}` now drives catalogue model detail.
+- Aircraft readiness is displayed only from the backend `readiness` presenter payload: `status`, `label`, `as_of`, `checks`, `blocking_reasons`, and `review_reasons`.
+- Aircraft package state is displayed from the backend `package_instantiation` presenter payload, including embedded batteries and components when returned by detail responses.
+- Catalogue model package counts and package definition metadata are displayed from the backend catalogue presenter.
+- Home aircraft metrics are derived from `/api/v1/aircraft` readiness status counts only.
+
+Confirmed API boundary:
+
+- Backend services support physical aircraft creation and package instantiation through `CreatePhysicalAircraft` and `InstantiateAircraftPackage`.
+- API V1 does not expose a mobile `POST /api/v1/aircraft` onboarding route, so M2 does not implement mobile aircraft creation.

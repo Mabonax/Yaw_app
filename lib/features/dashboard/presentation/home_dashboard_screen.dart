@@ -4,23 +4,50 @@ import '../../../app/theme/yaw_tokens.dart';
 import '../../../core/auth/auth_controller.dart';
 import '../../../core/auth/auth_models.dart';
 import '../../../core/widgets/yaw_widgets.dart';
+import '../../aircraft/presentation/aircraft_controller.dart';
 import '../../pilot/presentation/pilot_profile_screen.dart';
 
-class HomeDashboardScreen extends StatelessWidget {
-  const HomeDashboardScreen({super.key, required this.authController});
+class HomeDashboardScreen extends StatefulWidget {
+  const HomeDashboardScreen({
+    super.key,
+    required this.authController,
+    required this.aircraftController,
+  });
 
   final AuthController authController;
+  final AircraftController aircraftController;
+
+  @override
+  State<HomeDashboardScreen> createState() => _HomeDashboardScreenState();
+}
+
+class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
+  @override
+  void initState() {
+    super.initState();
+    if (widget.aircraftController.state.status == AircraftLoadStatus.idle) {
+      widget.aircraftController.loadAircraft();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: authController,
+      listenable: Listenable.merge([
+        widget.authController,
+        widget.aircraftController,
+      ]),
       builder: (context, _) {
-        final state = authController.state;
+        final state = widget.authController.state;
         final user = state.user;
 
         return RefreshIndicator(
-          onRefresh: authController.refreshIdentityContext,
+          onRefresh: () async {
+            await Future.wait([
+              widget.authController.refreshIdentityContext(),
+              widget.aircraftController.loadAircraft(refresh: true),
+            ]);
+          },
           child: ListView(
             padding: const EdgeInsets.all(YawSpacing.page),
             children: [
@@ -37,7 +64,7 @@ class HomeDashboardScreen extends StatelessWidget {
                   action: YawSecondaryButton(
                     label: 'Retry',
                     icon: Icons.refresh,
-                    onPressed: authController.refreshIdentityContext,
+                    onPressed: widget.authController.refreshIdentityContext,
                   ),
                 ),
                 const SizedBox(height: YawSpacing.lg),
@@ -62,10 +89,9 @@ class HomeDashboardScreen extends StatelessWidget {
               const SizedBox(height: YawSpacing.lg),
               _OperatorSummary(operators: state.operators),
               const SizedBox(height: YawSpacing.lg),
-              const YawEmptyState(
-                title: 'Operational metrics not connected yet',
-                message:
-                    'Aircraft counts, mission counts, and compliance percentages require backend dashboard or module endpoints. No mobile-only readiness score is calculated here.',
+              _AircraftOperationalSummary(
+                state: widget.aircraftController.state,
+                onRetry: widget.aircraftController.loadAircraft,
               ),
             ],
           ),
@@ -205,6 +231,120 @@ class _OperatorSummary extends StatelessWidget {
               ),
             ),
         ],
+      ),
+    );
+  }
+}
+
+class _AircraftOperationalSummary extends StatelessWidget {
+  const _AircraftOperationalSummary({
+    required this.state,
+    required this.onRetry,
+  });
+
+  final AircraftState state;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    if (state.status == AircraftLoadStatus.loading ||
+        state.status == AircraftLoadStatus.idle) {
+      return const YawLoadingState(message: 'Loading aircraft readiness...');
+    }
+
+    if (state.status == AircraftLoadStatus.failure) {
+      return YawErrorState(
+        title: 'Aircraft summary unavailable',
+        message: state.errorMessage ?? 'Aircraft could not be loaded.',
+        action: YawSecondaryButton(
+          label: 'Retry',
+          icon: Icons.refresh,
+          onPressed: onRetry,
+        ),
+      );
+    }
+
+    if (state.status == AircraftLoadStatus.empty) {
+      return const YawEmptyState(
+        title: 'No aircraft assigned',
+        message:
+            'No mobile aircraft records were returned for this authenticated account.',
+      );
+    }
+
+    return YawSectionCard(
+      title: 'Aircraft readiness',
+      subtitle: 'Counts are derived from /api/v1/aircraft readiness results.',
+      child: Wrap(
+        spacing: YawSpacing.md,
+        runSpacing: YawSpacing.md,
+        children: [
+          _DashboardMetric(
+            label: 'Fleet',
+            value: '${state.totalAircraft}',
+            icon: Icons.flight_outlined,
+            tone: YawStatusTone.info,
+          ),
+          _DashboardMetric(
+            label: 'Ready',
+            value: '${state.readyAircraft}',
+            icon: Icons.check_circle_outline,
+            tone: YawStatusTone.healthy,
+          ),
+          _DashboardMetric(
+            label: 'Review',
+            value: '${state.reviewAircraft}',
+            icon: Icons.warning_amber_outlined,
+            tone: YawStatusTone.warning,
+          ),
+          _DashboardMetric(
+            label: 'Blocked',
+            value: '${state.blockedAircraft}',
+            icon: Icons.block_outlined,
+            tone: YawStatusTone.critical,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DashboardMetric extends StatelessWidget {
+  const _DashboardMetric({
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.tone,
+  });
+
+  final String label;
+  final String value;
+  final IconData icon;
+  final YawStatusTone tone;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = tone.colors;
+
+    return SizedBox(
+      width: 132,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: colors.background,
+          borderRadius: BorderRadius.circular(YawRadius.md),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(YawSpacing.md),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(icon, color: colors.foreground),
+              const SizedBox(height: YawSpacing.sm),
+              Text(value, style: Theme.of(context).textTheme.titleLarge),
+              Text(label, overflow: TextOverflow.ellipsis),
+            ],
+          ),
+        ),
       ),
     );
   }

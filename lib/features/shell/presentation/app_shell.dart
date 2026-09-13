@@ -3,13 +3,20 @@ import 'package:flutter/material.dart';
 import '../../../core/auth/auth_controller.dart';
 import '../../../core/branding/yaw_logo.dart';
 import '../../../core/widgets/yaw_widgets.dart';
+import '../../aircraft/presentation/aircraft_controller.dart';
+import '../../aircraft/presentation/aircraft_screens.dart';
 import '../../dashboard/presentation/home_dashboard_screen.dart';
 import 'more_screen.dart';
 
 class AppShell extends StatefulWidget {
-  const AppShell({super.key, required this.authController});
+  const AppShell({
+    super.key,
+    required this.authController,
+    required this.aircraftController,
+  });
 
   final AuthController authController;
+  final AircraftController aircraftController;
 
   @override
   State<AppShell> createState() => _AppShellState();
@@ -45,19 +52,17 @@ class _AppShellState extends State<AppShell> {
       body: IndexedStack(
         index: _selectedIndex,
         children: [
-          HomeDashboardScreen(authController: widget.authController),
+          HomeDashboardScreen(
+            authController: widget.authController,
+            aircraftController: widget.aircraftController,
+          ),
           const _ModuleShell(
             title: 'Missions',
             message:
                 'Mission list and compliance detail can be wired to /api/v1/missions in M3.',
             icon: Icons.route,
           ),
-          const _ModuleShell(
-            title: 'Aircraft',
-            message:
-                'Aircraft and aircraft catalogue APIs are available for the M2 slice.',
-            icon: Icons.airplanemode_active,
-          ),
+          AircraftListScreen(controller: widget.aircraftController),
           const _ModuleShell(
             title: 'Compliance',
             message:

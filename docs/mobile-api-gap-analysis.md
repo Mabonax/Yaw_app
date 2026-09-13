@@ -47,3 +47,13 @@ Until these endpoints exist, the Flutter app must show explicit empty/gap states
 | Mobile pilot profile update | Pilots | Web/self pilot update actions exist outside API V1 | Update current user's pilot profile | PATCH | `/api/v1/me/pilot` | allowed editable pilot fields | updated pilot profile presenter | High |
 
 M1 implementation handles `pilot: null` as a useful pilot-profile-required state instead of treating it as a crash.
+
+## M2 Confirmed Aircraft Gaps
+
+| Required mobile capability | Backend domain | Existing web/backend functionality | Missing API endpoint | Suggested method | Suggested route | Expected request | Expected response | Priority |
+| -------------------------- | -------------- | ---------------------------------- | -------------------- | ---------------- | --------------- | ---------------- | ----------------- | -------- |
+| Physical aircraft onboarding | Aircraft | `CreatePhysicalAircraft` creates the aircraft, assigns operator, instantiates package assets, and records audit evidence | Mobile aircraft onboarding | POST | `/api/v1/aircraft` | catalogue model id or custom aircraft fields, registration, serial number, operator id, base location, acquisition metadata | created aircraft presenter with readiness and package instantiation | High |
+| Physical aircraft update | Aircraft | Web/backend aircraft requests and actions support managed aircraft records | Mobile aircraft update | PATCH | `/api/v1/aircraft/{aircraft}` | allowed editable aircraft fields | updated aircraft presenter | Medium |
+| Aircraft operator assignment | Operators/Aircraft | Operator-aircraft relationship exists in backend and is assigned during creation | Mobile operator-aircraft assignment | POST/PATCH | `/api/v1/aircraft/{aircraft}/operators` | operator id, assignment role, effective dates/status | updated aircraft operator relationship | Medium |
+
+M2 implementation intentionally stays read-only for physical aircraft because API V1 exposes only aircraft list/detail and catalogue list/detail routes.
