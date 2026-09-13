@@ -114,6 +114,20 @@ class MissionDetailScreen extends StatelessWidget {
   final MissionController controller;
   final AircraftController aircraftController;
 
+  Future<void> _openPostFlightForm(
+    BuildContext context,
+    YawMission current,
+  ) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => MissionPostFlightFormScreen(
+          mission: current,
+          controller: controller,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -153,6 +167,22 @@ class MissionDetailScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: YawSpacing.lg),
                 MissionComplianceCard(compliance: compliance),
+                const SizedBox(height: YawSpacing.lg),
+                MissionPostFlightCard(
+                  mission: current,
+                  propagation:
+                      controller.state.selectedPostFlightPropagation ??
+                      current.postFlightPropagation,
+                  isLoading: controller.state.isLoadingPostFlight,
+                  isSubmitting: controller.state.isSubmittingPostFlight,
+                  errorMessage: controller.state.postFlightErrorMessage,
+                  successMessage: controller.state.postFlightMessage,
+                  onRefresh: () => controller.loadPostFlightPropagation(
+                    current.id,
+                    preserveMessages: true,
+                  ),
+                  onCloseOut: () => _openPostFlightForm(context, current),
+                ),
                 const SizedBox(height: YawSpacing.lg),
                 MissionPlanningGapCard(mission: current),
               ],
@@ -687,6 +717,437 @@ class MissionReleaseBanner extends StatelessWidget {
   }
 }
 
+class MissionPostFlightCard extends StatelessWidget {
+  const MissionPostFlightCard({
+    super.key,
+    required this.mission,
+    required this.propagation,
+    required this.isLoading,
+    required this.isSubmitting,
+    this.errorMessage,
+    this.successMessage,
+    required this.onRefresh,
+    required this.onCloseOut,
+  });
+
+  final YawMission mission;
+  final YawPostFlightPropagation? propagation;
+  final bool isLoading;
+  final bool isSubmitting;
+  final String? errorMessage;
+  final String? successMessage;
+  final Future<void> Function() onRefresh;
+  final VoidCallback onCloseOut;
+
+  @override
+  Widget build(BuildContext context) {
+    final current = propagation;
+    final canSubmit = current?.canPropagate == true && !isSubmitting;
+
+    return YawSectionCard(
+      title: 'Mission execution and close-out',
+      subtitle:
+          'Post-flight propagation writes the server pilot logbook, aircraft folio, and audit evidence.',
+      action: IconButton(
+        tooltip: 'Refresh post-flight state',
+        onPressed: isLoading ? null : onRefresh,
+        icon: const Icon(Icons.refresh),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (isLoading) ...[
+            const YawLoadingState(message: 'Loading post-flight state...'),
+          ] else ...[
+            Wrap(
+              spacing: YawSpacing.sm,
+              runSpacing: YawSpacing.sm,
+              children: [
+                YawStatusChip(
+                  label: mission.lifecycleStatus.label,
+                  tone: _toneForLifecycle(mission.lifecycleStatus),
+                  icon: Icons.timeline_outlined,
+                ),
+                YawStatusChip(
+                  label: current?.displayLabel ?? 'Pending propagation',
+                  tone: _toneForPostFlightState(current?.state),
+                  icon: Icons.assignment_turned_in_outlined,
+                ),
+                if (current?.latestChecklistState != null)
+                  YawStatusChip(
+                    label:
+                        'Checklist ${_format(current?.latestChecklistState)}',
+                    tone: current?.latestChecklistState == 'blocked'
+                        ? YawStatusTone.critical
+                        : YawStatusTone.healthy,
+                    icon: Icons.fact_check_outlined,
+                  ),
+              ],
+            ),
+            const SizedBox(height: YawSpacing.md),
+            MissionExecutionTimeline(mission: mission, propagation: current),
+            const SizedBox(height: YawSpacing.md),
+            if (current?.blockingReasons.isNotEmpty == true) ...[
+              for (final reason in current!.blockingReasons)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: YawSpacing.sm),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(
+                        Icons.warning_amber_outlined,
+                        color: YawColors.warning,
+                        size: YawSizing.iconSm,
+                      ),
+                      const SizedBox(width: YawSpacing.sm),
+                      Expanded(child: Text(reason)),
+                    ],
+                  ),
+                ),
+            ] else if (current?.isPropagated == true) ...[
+              MissionOperationalRecordsSummary(propagation: current!),
+            ] else ...[
+              const Text(
+                'The server has not reported close-out blockers for this mission. Submit actuals only after the flight and post-flight checklist are complete.',
+              ),
+            ],
+            if (errorMessage != null) ...[
+              const SizedBox(height: YawSpacing.md),
+              Text(
+                errorMessage!,
+                style: const TextStyle(color: YawColors.critical),
+              ),
+            ],
+            if (successMessage != null) ...[
+              const SizedBox(height: YawSpacing.md),
+              Text(
+                successMessage!,
+                style: const TextStyle(color: YawColors.healthy),
+              ),
+            ],
+            const SizedBox(height: YawSpacing.lg),
+            YawPrimaryButton(
+              label: current?.isPropagated == true
+                  ? 'Records propagated'
+                  : 'Close out flight',
+              icon: Icons.flight_land_outlined,
+              isLoading: isSubmitting,
+              onPressed: canSubmit ? onCloseOut : null,
+            ),
+            const SizedBox(height: YawSpacing.md),
+            const Text(
+              'Battery usage and defect capture are still Laravel web workflows until API V1 exposes mobile JSON routes for those records.',
+              style: TextStyle(color: YawColors.textMuted),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class MissionExecutionTimeline extends StatelessWidget {
+  const MissionExecutionTimeline({
+    super.key,
+    required this.mission,
+    required this.propagation,
+  });
+
+  final YawMission mission;
+  final YawPostFlightPropagation? propagation;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        YawInfoRow(
+          label: 'Planned window',
+          value: _joinPresent([mission.plannedStartAt, mission.plannedEndAt]),
+        ),
+        YawInfoRow(
+          label: 'Actual takeoff',
+          value:
+              propagation?.actualTakeoffAt ??
+              mission.actualTakeoffAt ??
+              'Not supplied',
+        ),
+        YawInfoRow(
+          label: 'Actual landing',
+          value:
+              propagation?.actualLandingAt ??
+              mission.actualLandingAt ??
+              'Not supplied',
+        ),
+        YawInfoRow(
+          label: 'Flight duration',
+          value: _minutesLabel(
+            propagation?.actualFlightDurationMinutes ??
+                mission.actualFlightDurationMinutes,
+          ),
+        ),
+        YawInfoRow(
+          label: 'Completed at',
+          value:
+              propagation?.completedAt ?? mission.completedAt ?? 'Not supplied',
+        ),
+      ],
+    );
+  }
+}
+
+class MissionOperationalRecordsSummary extends StatelessWidget {
+  const MissionOperationalRecordsSummary({
+    super.key,
+    required this.propagation,
+  });
+
+  final YawPostFlightPropagation propagation;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        YawInfoRow(
+          label: 'Pilot log entry',
+          value: _idLabel(propagation.pilotLogEntryId),
+        ),
+        YawInfoRow(
+          label: 'Aircraft folio',
+          value: _idLabel(propagation.aircraftFlightFolioId),
+        ),
+        YawInfoRow(
+          label: 'Battery cycles',
+          value: '${propagation.batteryCyclesSummarised ?? 0}',
+        ),
+        YawInfoRow(
+          label: 'Battery usages',
+          value: '${propagation.batteryUsageCount ?? 0}',
+        ),
+        YawInfoRow(
+          label: 'Flight tracks',
+          value: '${propagation.flightTrackCount ?? 0}',
+        ),
+        YawInfoRow(
+          label: 'Defects',
+          value:
+              '${propagation.defectCount ?? 0} total / ${propagation.openDefectCount ?? 0} open',
+        ),
+      ],
+    );
+  }
+}
+
+class MissionPostFlightFormScreen extends StatefulWidget {
+  const MissionPostFlightFormScreen({
+    super.key,
+    required this.mission,
+    required this.controller,
+  });
+
+  final YawMission mission;
+  final MissionController controller;
+
+  @override
+  State<MissionPostFlightFormScreen> createState() =>
+      _MissionPostFlightFormScreenState();
+}
+
+class _MissionPostFlightFormScreenState
+    extends State<MissionPostFlightFormScreen> {
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _takeoffController;
+  late final TextEditingController _landingController;
+  late final TextEditingController _notesController;
+  bool _pilotConfirmed = false;
+  bool _aircraftConfirmed = false;
+  bool _defectsDeclared = false;
+  bool _occurrenceDeclared = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final propagation = widget.controller.state.selectedPostFlightPropagation;
+    _takeoffController = TextEditingController(
+      text:
+          propagation?.actualTakeoffAt ?? widget.mission.actualTakeoffAt ?? '',
+    );
+    _landingController = TextEditingController(
+      text:
+          propagation?.actualLandingAt ?? widget.mission.actualLandingAt ?? '',
+    );
+    _notesController = TextEditingController(
+      text:
+          propagation?.postFlightDeclaration['closure_notes']?.toString() ?? '',
+    );
+    _pilotConfirmed =
+        propagation?.postFlightDeclaration['pilot_confirmed'] == true;
+    _aircraftConfirmed =
+        propagation?.postFlightDeclaration['aircraft_confirmed'] == true;
+    _defectsDeclared =
+        propagation?.postFlightDeclaration['defects_declared'] == true;
+    _occurrenceDeclared =
+        propagation?.postFlightDeclaration['occurrence_declared'] == true;
+  }
+
+  @override
+  void dispose() {
+    _takeoffController.dispose();
+    _landingController.dispose();
+    _notesController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: YawAppBar(title: 'Close out ${widget.mission.displayTitle}'),
+      body: ListenableBuilder(
+        listenable: widget.controller,
+        builder: (context, _) {
+          final state = widget.controller.state;
+
+          return Form(
+            key: _formKey,
+            child: ListView(
+              padding: const EdgeInsets.all(YawSpacing.page),
+              children: [
+                const YawSectionHeader(
+                  title: 'Post-flight close-out',
+                  subtitle:
+                      'Actuals are sent to /api/v1/missions/{mission}/post-flight-propagation and revalidated by Laravel.',
+                ),
+                YawTextField(
+                  controller: _takeoffController,
+                  label: 'Actual takeoff ISO time',
+                  keyboardType: TextInputType.datetime,
+                  validator: _requiredDate,
+                  textInputAction: TextInputAction.next,
+                ),
+                const SizedBox(height: YawSpacing.md),
+                YawTextField(
+                  controller: _landingController,
+                  label: 'Actual landing ISO time',
+                  keyboardType: TextInputType.datetime,
+                  validator: _requiredLandingDate,
+                  textInputAction: TextInputAction.next,
+                ),
+                const SizedBox(height: YawSpacing.md),
+                TextFormField(
+                  controller: _notesController,
+                  decoration: const InputDecoration(labelText: 'Closure notes'),
+                  minLines: 3,
+                  maxLines: 5,
+                  maxLength: 2000,
+                ),
+                const SizedBox(height: YawSpacing.md),
+                CheckboxListTile(
+                  value: _pilotConfirmed,
+                  onChanged: (value) => setState(() {
+                    _pilotConfirmed = value ?? false;
+                  }),
+                  title: const Text('Pilot confirms the logbook actuals'),
+                  controlAffinity: ListTileControlAffinity.leading,
+                ),
+                CheckboxListTile(
+                  value: _aircraftConfirmed,
+                  onChanged: (value) => setState(() {
+                    _aircraftConfirmed = value ?? false;
+                  }),
+                  title: const Text('Aircraft record is confirmed'),
+                  controlAffinity: ListTileControlAffinity.leading,
+                ),
+                SwitchListTile(
+                  value: _defectsDeclared,
+                  onChanged: (value) => setState(() {
+                    _defectsDeclared = value;
+                  }),
+                  title: const Text('Defects declared'),
+                ),
+                SwitchListTile(
+                  value: _occurrenceDeclared,
+                  onChanged: (value) => setState(() {
+                    _occurrenceDeclared = value;
+                  }),
+                  title: const Text('Occurrence declared'),
+                ),
+                if (state.postFlightErrorMessage != null) ...[
+                  const SizedBox(height: YawSpacing.md),
+                  Text(
+                    state.postFlightErrorMessage!,
+                    style: const TextStyle(color: YawColors.critical),
+                  ),
+                ],
+                const SizedBox(height: YawSpacing.lg),
+                YawPrimaryButton(
+                  label: 'Propagate records',
+                  icon: Icons.assignment_turned_in_outlined,
+                  isLoading: state.isSubmittingPostFlight,
+                  onPressed: state.isSubmittingPostFlight ? null : _submit,
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  String? _requiredDate(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return 'Required by the YAW API.';
+    }
+    return DateTime.tryParse(value.trim()) == null
+        ? 'Use an ISO date/time value.'
+        : null;
+  }
+
+  String? _requiredLandingDate(String? value) {
+    final base = _requiredDate(value);
+    if (base != null) {
+      return base;
+    }
+    final takeoff = DateTime.tryParse(_takeoffController.text.trim());
+    final landing = DateTime.tryParse(value!.trim());
+    if (takeoff != null && landing != null && !landing.isAfter(takeoff)) {
+      return 'Landing must be after takeoff.';
+    }
+    return null;
+  }
+
+  Future<void> _submit() async {
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+    if (!_pilotConfirmed || !_aircraftConfirmed) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Pilot and aircraft confirmations are required.'),
+        ),
+      );
+      return;
+    }
+
+    final submitted = await widget.controller.submitPostFlight(
+      YawPostFlightSubmission(
+        actualTakeoffAt: _takeoffController.text.trim(),
+        actualLandingAt: _landingController.text.trim(),
+        pilotConfirmed: _pilotConfirmed,
+        aircraftConfirmed: _aircraftConfirmed,
+        defectsDeclared: _defectsDeclared,
+        occurrenceDeclared: _occurrenceDeclared,
+        closureNotes: _notesController.text,
+      ),
+    );
+
+    if (!mounted || !submitted) {
+      return;
+    }
+
+    Navigator.of(context).pop();
+  }
+}
+
 class MissionPlanningGapCard extends StatelessWidget {
   const MissionPlanningGapCard({super.key, required this.mission});
 
@@ -835,6 +1296,29 @@ class _MissionSkeletonList extends StatelessWidget {
       ],
     );
   }
+}
+
+String _minutesLabel(int? minutes) {
+  if (minutes == null) {
+    return 'Not supplied';
+  }
+  final hours = minutes ~/ 60;
+  final remainder = minutes % 60;
+  if (hours == 0) {
+    return '${minutes}m';
+  }
+  return '${hours}h ${remainder}m';
+}
+
+String _idLabel(int? id) => id == null ? 'Not supplied' : '#$id';
+
+YawStatusTone _toneForPostFlightState(String? state) {
+  return switch (state) {
+    'propagated' => YawStatusTone.healthy,
+    'propagated_with_follow_up' => YawStatusTone.warning,
+    'blocked' => YawStatusTone.critical,
+    _ => YawStatusTone.info,
+  };
 }
 
 String _format(String? value) {

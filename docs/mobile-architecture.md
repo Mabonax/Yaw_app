@@ -214,3 +214,27 @@ YawApp.create
 Mission state follows the established M1/M2 pattern: repository methods call only API V1 routes, `MissionController` owns list/detail/compliance/release state, and UI widgets render the backend-provided compliance contract. Mission lifecycle values are typed from the backend enum: `draft`, `planning`, `compliance_review`, `awaiting_approval`, `approved`, `ready_for_flight`, `in_progress`, `completed`, `post_flight_review`, `closed`, and `cancelled`.
 
 Release architecture remains read-only in mobile until an API V1 route exists. The UI can show release readiness and blockers, but it does not call Laravel web routes or implement release rules locally.
+
+## M4 Update - Post-flight State and Write Boundary
+
+Mission feature additions:
+
+```text
+MissionRepository
+-> fetchPostFlightPropagation(id)
+-> propagatePostFlight(id, YawPostFlightSubmission)
+
+MissionController
+-> selectedPostFlightPropagation
+-> loadPostFlightPropagation(id)
+-> submitPostFlight(submission)
+
+MissionDetailScreen
+-> MissionPostFlightCard
+-> MissionPostFlightFormScreen
+-> MissionOperationalRecordsSummary
+```
+
+The post-flight write boundary is intentionally narrow. Flutter sends the exact API request accepted by `PropagatePostFlightRequest` and treats the backend response as authoritative for mission actuals, propagation state, pilot logbook id, aircraft folio id, battery counts, flight tracks, and defect counts. Server-owned fields such as duration, propagation state, readiness status, logbook id, and folio id are never sent by the client.
+
+Battery usage, defect reporting, checklist capture, direct logbook browsing, and direct aircraft folio browsing stay behind explicit API-gap states until API V1 exposes mobile-safe JSON routes.

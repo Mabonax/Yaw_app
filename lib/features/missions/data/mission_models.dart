@@ -309,19 +309,134 @@ class YawMissionComplianceControl {
 }
 
 class YawPostFlightPropagation {
-  const YawPostFlightPropagation({this.state, this.label, this.propagatedAt});
+  const YawPostFlightPropagation({
+    this.state,
+    this.label,
+    required this.canPropagate,
+    this.propagatedAt,
+    this.actualTakeoffAt,
+    this.actualLandingAt,
+    this.actualFlightDurationMinutes,
+    this.completedAt,
+    this.pilotLogEntryId,
+    this.aircraftFlightFolioId,
+    this.latestChecklistState,
+    required this.postFlightDeclaration,
+    required this.results,
+    required this.blockingReasons,
+    this.batteryCyclesSummarised,
+    this.batteryUsageCount,
+    this.flightTrackCount,
+    this.defectCount,
+    this.openDefectCount,
+  });
 
   final String? state;
   final String? label;
+  final bool canPropagate;
   final String? propagatedAt;
+  final String? actualTakeoffAt;
+  final String? actualLandingAt;
+  final int? actualFlightDurationMinutes;
+  final String? completedAt;
+  final int? pilotLogEntryId;
+  final int? aircraftFlightFolioId;
+  final String? latestChecklistState;
+  final Map<String, Object?> postFlightDeclaration;
+  final Map<String, Object?> results;
+  final List<String> blockingReasons;
+  final int? batteryCyclesSummarised;
+  final int? batteryUsageCount;
+  final int? flightTrackCount;
+  final int? defectCount;
+  final int? openDefectCount;
+
+  bool get isPropagated =>
+      state == 'propagated' || state == 'propagated_with_follow_up';
+
+  String get displayLabel => label ?? _formatState(state ?? 'pending');
 
   factory YawPostFlightPropagation.fromJson(Map<String, Object?> json) {
+    final results = _asMap(json['results']);
     return YawPostFlightPropagation(
       state: _asString(json['state']),
       label: _asString(json['label']),
+      canPropagate: json['can_propagate'] == true,
       propagatedAt: _asString(json['propagated_at']),
+      actualTakeoffAt: _asString(json['actual_takeoff_at']),
+      actualLandingAt: _asString(json['actual_landing_at']),
+      actualFlightDurationMinutes: _asNullableInt(
+        json['actual_flight_duration_minutes'],
+      ),
+      completedAt: _asString(json['completed_at']),
+      pilotLogEntryId: _asNullableInt(json['pilot_log_entry_id']),
+      aircraftFlightFolioId: _asNullableInt(json['aircraft_flight_folio_id']),
+      latestChecklistState: _asString(json['latest_checklist_state']),
+      postFlightDeclaration: _asMap(json['post_flight_declaration']),
+      results: results,
+      blockingReasons: _stringList(json['blocking_reasons']),
+      batteryCyclesSummarised: _asNullableInt(
+        json['battery_cycles_summarised'] ??
+            results['battery_cycles_summarised'],
+      ),
+      batteryUsageCount: _asNullableInt(
+        json['battery_usage_count'] ?? results['battery_usage_count'],
+      ),
+      flightTrackCount: _asNullableInt(
+        json['flight_track_count'] ?? results['flight_track_count'],
+      ),
+      defectCount: _asNullableInt(
+        json['defect_count'] ?? results['defect_count'],
+      ),
+      openDefectCount: _asNullableInt(
+        json['open_defect_count'] ?? results['open_defect_count'],
+      ),
     );
   }
+}
+
+class YawPostFlightSubmission {
+  const YawPostFlightSubmission({
+    required this.actualTakeoffAt,
+    required this.actualLandingAt,
+    required this.pilotConfirmed,
+    required this.aircraftConfirmed,
+    required this.defectsDeclared,
+    required this.occurrenceDeclared,
+    this.closureNotes,
+  });
+
+  final String actualTakeoffAt;
+  final String actualLandingAt;
+  final bool pilotConfirmed;
+  final bool aircraftConfirmed;
+  final bool defectsDeclared;
+  final bool occurrenceDeclared;
+  final String? closureNotes;
+
+  Map<String, Object?> toJson() {
+    return {
+      'actual_takeoff_at': actualTakeoffAt,
+      'actual_landing_at': actualLandingAt,
+      'pilot_confirmed': pilotConfirmed,
+      'aircraft_confirmed': aircraftConfirmed,
+      'defects_declared': defectsDeclared,
+      'occurrence_declared': occurrenceDeclared,
+      if (closureNotes != null && closureNotes!.trim().isNotEmpty)
+        'closure_notes': closureNotes!.trim(),
+    };
+  }
+}
+
+String _formatState(String value) {
+  if (value.isEmpty) {
+    return 'Not supplied';
+  }
+  return value
+      .split('_')
+      .where((part) => part.isNotEmpty)
+      .map((part) => '${part[0].toUpperCase()}${part.substring(1)}')
+      .join(' ');
 }
 
 String? _asString(Object? value) {

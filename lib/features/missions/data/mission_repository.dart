@@ -31,6 +31,28 @@ class MissionRepository {
     return YawMissionCompliance.fromJson(_asMap(response.data['compliance']));
   }
 
+  Future<YawPostFlightPropagation> fetchPostFlightPropagation(int id) async {
+    final response = await _apiClient.get(
+      'missions/$id/post-flight-propagation',
+    );
+    return YawPostFlightPropagation.fromJson(
+      _asMap(response.data['post_flight_propagation']),
+    );
+  }
+
+  Future<YawPostFlightPropagation> propagatePostFlight(
+    int id,
+    YawPostFlightSubmission submission,
+  ) async {
+    final response = await _apiClient.post(
+      'missions/$id/post-flight-propagation',
+      body: submission.toJson(),
+    );
+    return YawPostFlightPropagation.fromJson(
+      _asMap(response.data['post_flight_propagation']),
+    );
+  }
+
   Future<YawMission> releaseMission(int id) async {
     throw const ApiException(
       type: ApiExceptionType.notFound,

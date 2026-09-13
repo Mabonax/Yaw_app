@@ -183,3 +183,24 @@ Remaining M3 backend gaps:
 - API V1 pre-flight checklist and defect workflows are not exposed.
 
 Next recommended phase remains M4: Mission Execution + Post-flight Close-out + Pilot Logbook + Aircraft Folio + Defects. The existing post-flight propagation API can be used there, but mission completion, checklist capture, logbook, folio, and defects still need careful backend API verification before mobile writes.
+
+## Phase M4 - Mission Execution + Post-flight Close-out + Operational Records
+
+Completed in this pass:
+
+- Post-flight propagation summary from `GET /api/v1/missions/{mission}/post-flight-propagation`.
+- Close-out submission to `POST /api/v1/missions/{mission}/post-flight-propagation` using the backend request contract: `actual_takeoff_at`, `actual_landing_at`, `pilot_confirmed`, `aircraft_confirmed`, `defects_declared`, `occurrence_declared`, and optional `closure_notes`.
+- Mission Detail now shows execution actuals, post-flight checklist state, server blocking reasons, and propagation status.
+- Propagated results now surface pilot logbook entry id, aircraft flight folio id, battery usage counts/cycles, flight track count, and defect/open-defect counts returned by Laravel.
+- Post-flight validation and duplicate-propagation errors are surfaced from API validation envelopes.
+- Tests cover model parsing, repository GET/POST routes, controller success/failure state, and the close-out form.
+
+Remaining M4 backend gaps:
+
+- API V1 does not expose mission completion/status transition before propagation.
+- API V1 does not expose mobile pre-flight or post-flight checklist capture.
+- API V1 does not expose mobile battery usage entry routes.
+- API V1 does not expose mobile aircraft/mission defect reporting routes.
+- API V1 does not expose direct logbook or aircraft folio list/detail routes; M4 displays only IDs and counts returned by post-flight propagation.
+
+Next recommended phase: add backend API routes for checklist capture, battery usage, defect reporting, and mission completion, then extend the mobile M4 workflow from close-out propagation into full mission execution capture.

@@ -43,6 +43,39 @@ void main() {
 
       expect(mission.lifecycleStatus, YawMissionLifecycleStatus.unknown);
     });
+
+    test(
+      'parses post-flight propagation and serializes close-out payloads',
+      () {
+        final propagation = YawPostFlightPropagation.fromJson(
+          postFlightJson(propagated: true),
+        );
+        final submission = const YawPostFlightSubmission(
+          actualTakeoffAt: '2026-09-14T08:05:00Z',
+          actualLandingAt: '2026-09-14T08:42:00Z',
+          pilotConfirmed: true,
+          aircraftConfirmed: true,
+          defectsDeclared: false,
+          occurrenceDeclared: false,
+          closureNotes: ' Flight completed. ',
+        );
+
+        expect(propagation.isPropagated, isTrue);
+        expect(propagation.pilotLogEntryId, 101);
+        expect(propagation.aircraftFlightFolioId, 202);
+        expect(propagation.batteryUsageCount, 2);
+        expect(propagation.blockingReasons, isEmpty);
+        expect(submission.toJson(), {
+          'actual_takeoff_at': '2026-09-14T08:05:00Z',
+          'actual_landing_at': '2026-09-14T08:42:00Z',
+          'pilot_confirmed': true,
+          'aircraft_confirmed': true,
+          'defects_declared': false,
+          'occurrence_declared': false,
+          'closure_notes': 'Flight completed.',
+        });
+      },
+    );
   });
 
   group('mission repository', () {
@@ -106,6 +139,49 @@ void main() {
       );
     });
 
+    test(
+      'fetches and submits post-flight propagation through API V1',
+      () async {
+        final seen = <String>[];
+        Map<String, Object?>? submitted;
+        final repository = MissionRepository(
+          apiClient: _client((request) async {
+            seen.add('${request.method} ${request.url.path}');
+            if (request.method == 'POST') {
+              submitted = jsonDecode(request.body) as Map<String, Object?>;
+              return _ok({
+                'post_flight_propagation': postFlightJson(propagated: true),
+              });
+            }
+            return _ok({'post_flight_propagation': postFlightJson()});
+          }),
+        );
+
+        final summary = await repository.fetchPostFlightPropagation(9);
+        final propagated = await repository.propagatePostFlight(
+          9,
+          const YawPostFlightSubmission(
+            actualTakeoffAt: '2026-09-14T08:05:00Z',
+            actualLandingAt: '2026-09-14T08:42:00Z',
+            pilotConfirmed: true,
+            aircraftConfirmed: true,
+            defectsDeclared: false,
+            occurrenceDeclared: true,
+            closureNotes: 'Occurrence logged in ops register.',
+          ),
+        );
+
+        expect(summary.canPropagate, isTrue);
+        expect(propagated.isPropagated, isTrue);
+        expect(seen, [
+          'GET /api/v1/missions/9/post-flight-propagation',
+          'POST /api/v1/missions/9/post-flight-propagation',
+        ]);
+        expect(submitted?['occurrence_declared'], isTrue);
+        expect(submitted, isNot(contains('actual_flight_duration_minutes')));
+      },
+    );
+
     test('release action is not implemented until API V1 exposes it', () async {
       final repository = MissionRepository(
         apiClient: _client((request) async => _ok({'mission': missionJson()})),
@@ -166,6 +242,88 @@ void main() {
       expect(empty.state.status, MissionLoadStatus.empty);
       expect(failure.state.status, MissionLoadStatus.failure);
       expect(failure.state.errorMessage, contains('server error'));
+    });
+
+    test(
+      'submits post-flight close-out and refreshes selected mission state',
+      () async {
+        final controller = MissionController(
+          repository: MissionRepository(
+            apiClient: _client((request) async {
+              if (request.url.path.endsWith('/post-flight-propagation') &&
+                  request.method == 'POST') {
+                return _ok({
+                  'post_flight_propagation': postFlightJson(propagated: true),
+                });
+              }
+              if (request.url.path.endsWith('/post-flight-propagation')) {
+                return _ok({'post_flight_propagation': postFlightJson()});
+              }
+              if (request.url.path.endsWith('/missions/9')) {
+                return _ok({'mission': missionJson(lifecycle: 'completed')});
+              }
+              return _ok({
+                'missions': [missionJson(lifecycle: 'completed')],
+              });
+            }),
+          ),
+        );
+
+        await controller.loadMissionDetail(9);
+        final submitted = await controller.submitPostFlight(
+          const YawPostFlightSubmission(
+            actualTakeoffAt: '2026-09-14T08:05:00Z',
+            actualLandingAt: '2026-09-14T08:42:00Z',
+            pilotConfirmed: true,
+            aircraftConfirmed: true,
+            defectsDeclared: false,
+            occurrenceDeclared: false,
+          ),
+        );
+
+        expect(submitted, isTrue);
+        expect(controller.state.postFlightMessage, contains('propagated'));
+        expect(
+          controller.state.selectedPostFlightPropagation?.isPropagated,
+          isTrue,
+        );
+      },
+    );
+
+    test('reports post-flight validation errors from the API', () async {
+      final controller = MissionController(
+        repository: MissionRepository(
+          apiClient: _client((request) async {
+            if (request.url.path.endsWith('/post-flight-propagation') &&
+                request.method == 'POST') {
+              return _validationError({
+                'post_flight_checklist': [
+                  'A post-flight checklist must be completed before propagation.',
+                ],
+              });
+            }
+            if (request.url.path.endsWith('/post-flight-propagation')) {
+              return _ok({'post_flight_propagation': postFlightJson()});
+            }
+            return _ok({'mission': missionJson(lifecycle: 'completed')});
+          }),
+        ),
+      );
+
+      await controller.loadMissionDetail(9);
+      final submitted = await controller.submitPostFlight(
+        const YawPostFlightSubmission(
+          actualTakeoffAt: '2026-09-14T08:05:00Z',
+          actualLandingAt: '2026-09-14T08:42:00Z',
+          pilotConfirmed: true,
+          aircraftConfirmed: true,
+          defectsDeclared: false,
+          occurrenceDeclared: false,
+        ),
+      );
+
+      expect(submitted, isFalse);
+      expect(controller.state.postFlightErrorMessage, contains('checklist'));
     });
 
     test('prevents duplicate release attempts and reports API gap', () async {
@@ -243,6 +401,70 @@ void main() {
       expect(find.text('Risk assessment'), findsOneWidget);
     });
 
+    testWidgets('renders post-flight close-out form and submits payload', (
+      tester,
+    ) async {
+      final mission = YawMission.fromJson(missionJson(lifecycle: 'completed'));
+      final controller = MissionController(
+        repository: MissionRepository(
+          apiClient: _client((request) async {
+            if (request.url.path.endsWith('/post-flight-propagation') &&
+                request.method == 'POST') {
+              final body = jsonDecode(request.body) as Map<String, Object?>;
+              expect(body['pilot_confirmed'], isTrue);
+              expect(body['aircraft_confirmed'], isTrue);
+              return _ok({
+                'post_flight_propagation': postFlightJson(propagated: true),
+              });
+            }
+            if (request.url.path.endsWith('/post-flight-propagation')) {
+              return _ok({'post_flight_propagation': postFlightJson()});
+            }
+            if (request.url.path.endsWith('/missions/9')) {
+              return _ok({'mission': missionJson(lifecycle: 'completed')});
+            }
+            return _ok({
+              'missions': [missionJson(lifecycle: 'completed')],
+            });
+          }),
+        ),
+      );
+
+      await controller.loadMissionDetail(9);
+      await tester.pumpWidget(
+        _TestApp(
+          child: MissionPostFlightFormScreen(
+            mission: mission,
+            controller: controller,
+          ),
+        ),
+      );
+
+      expect(find.text('Post-flight close-out'), findsOneWidget);
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Actual takeoff ISO time'),
+        '2026-09-14T08:05:00Z',
+      );
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Actual landing ISO time'),
+        '2026-09-14T08:42:00Z',
+      );
+      await tester.tap(find.text('Pilot confirms the logbook actuals'));
+      await tester.tap(find.text('Aircraft record is confirmed'));
+      await tester.scrollUntilVisible(
+        find.text('Propagate records'),
+        300,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Propagate records'));
+      await tester.pumpAndSettle();
+
+      expect(
+        controller.state.selectedPostFlightPropagation?.isPropagated,
+        isTrue,
+      );
+    });
+
     testWidgets('renders compliance overview attention queue', (tester) async {
       final missionController = MissionController(
         repository: MissionRepository(
@@ -297,6 +519,20 @@ http.Response _ok(Map<String, Object?> data) {
   );
 }
 
+http.Response _validationError(Map<String, List<String>> errors) {
+  return http.Response(
+    jsonEncode({
+      'success': false,
+      'message': 'The given data was invalid.',
+      'data': null,
+      'errors': errors,
+      'error': 'validation_failed',
+      'meta': {'contract_version': 'v1.0'},
+    }),
+    422,
+  );
+}
+
 http.Response _error(int statusCode, String message) {
   return http.Response(
     jsonEncode({
@@ -311,7 +547,10 @@ http.Response _error(int statusCode, String message) {
   );
 }
 
-Map<String, Object?> missionJson({String status = 'amber'}) {
+Map<String, Object?> missionJson({
+  String status = 'amber',
+  String lifecycle = 'approved',
+}) {
   return {
     'id': 9,
     'mission_number': 'MIS-001',
@@ -341,17 +580,55 @@ Map<String, Object?> missionJson({String status = 'amber'}) {
     'approvals': [],
     'risk_assessment': {'overall': status == 'green' ? 'low' : 'pending'},
     'emergency_arrangements': 'Landing area briefed.',
-    'lifecycle_state': 'approved',
+    'lifecycle_state': lifecycle,
     'release_gate_state': status,
     'release_gate_results': {'state': status, 'checks': []},
     'compliance': complianceJson(status: status),
-    'post_flight_propagation': {'state': 'pending', 'label': 'Pending'},
+    'post_flight_propagation': postFlightJson(
+      canPropagate: lifecycle == 'completed',
+    ),
     'regulatory_source': 'FR-MIS-001',
     'regulatory_source_version': 'v1.0',
     'regulatory_effective_date': '2026-09-09',
     'regulatory_applicability': 'Mission compliance test.',
     'responsible_role': 'Operations Manager',
     'created_at': '2026-09-13T10:00:00Z',
+  };
+}
+
+Map<String, Object?> postFlightJson({
+  bool canPropagate = true,
+  bool propagated = false,
+}) {
+  return {
+    'state': propagated ? 'propagated_with_follow_up' : 'pending',
+    'label': propagated ? 'Propagated with follow-up' : 'Pending propagation',
+    'can_propagate': canPropagate && !propagated,
+    'propagated_at': propagated ? '2026-09-14T08:45:00Z' : null,
+    'actual_takeoff_at': propagated ? '2026-09-14T08:05:00Z' : null,
+    'actual_landing_at': propagated ? '2026-09-14T08:42:00Z' : null,
+    'actual_flight_duration_minutes': propagated ? 37 : null,
+    'completed_at': propagated ? '2026-09-14T08:45:00Z' : null,
+    'pilot_log_entry_id': propagated ? 101 : null,
+    'aircraft_flight_folio_id': propagated ? 202 : null,
+    'latest_checklist_state': 'completed_with_exceptions',
+    'post_flight_declaration': {
+      'pilot_confirmed': propagated,
+      'aircraft_confirmed': propagated,
+      'defects_declared': false,
+      'occurrence_declared': false,
+      'closure_notes': propagated ? 'Flight completed.' : null,
+    },
+    'results': {
+      'battery_cycles_summarised': 2,
+      'battery_usage_count': 2,
+      'flight_track_count': 1,
+      'defect_count': 1,
+      'open_defect_count': propagated ? 1 : 0,
+    },
+    'blocking_reasons': canPropagate || propagated
+        ? []
+        : ['Post-flight checklist has not been recorded.'],
   };
 }
 

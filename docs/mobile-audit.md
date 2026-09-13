@@ -173,3 +173,22 @@ Confirmed API boundary:
 - API V1 does not expose `POST /api/v1/missions/{mission}/release`; the existing release action is a Laravel web route using `ReleaseMission`.
 - API V1 does not expose mission creation or update/planning routes; the existing backend web request is `StoreMissionRequest`.
 - Flutter presents release readiness and the missing release API state; Laravel remains authoritative for release decisions.
+
+## M4 Update - Mission Execution, Close-out, and Operational Records
+
+Completed in M4:
+
+- Verified the Laravel API V1 post-flight routes in `routes/api.php`.
+- Verified `PropagatePostFlightRequest` requires actual takeoff/landing, accepted pilot and aircraft confirmations, defect/occurrence declarations, and optional closure notes while prohibiting server-owned fields.
+- Verified `PropagatePostFlightRecords` creates/updates `PilotLogEntry` and `AircraftFlightFolio`, records battery usage counts/cycles from existing mission records, includes defect counts, and writes audit evidence.
+- Added Flutter parsing for the richer post-flight propagation summary and result payload.
+- Added mission repository methods for post-flight propagation GET and POST.
+- Added mission controller state for loading, submitting, validation failures, success messages, and selected propagation results.
+- Added Mission Detail execution/close-out UI showing actuals, checklist state, blockers, propagated operational record ids/counts, and the remaining API gaps for battery/defect capture.
+- Added a close-out form that submits only the backend-approved fields.
+
+Confirmed API boundary:
+
+- Mobile can now submit post-flight propagation only when the backend reports `can_propagate`.
+- Mobile cannot yet mark a mission completed, capture post-flight checklist items, record battery usage, or report defects through API V1.
+- Pilot logbook and aircraft folio records are created by the backend propagation service; Flutter displays returned ids/counts and does not attempt local operational-record creation.
