@@ -49,7 +49,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('shows login validation before authentication', (tester) async {
+  testWidgets('shows WorkOS sign-in entry point when unauthenticated', (tester) async {
     final app = _appWithToken(null);
 
     await tester.pumpWidget(app);
@@ -57,22 +57,18 @@ void main() {
 
     await _openLogin(tester);
 
-    await _tapVisible(tester, find.text('Sign In'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Email is required.'), findsOneWidget);
-    expect(find.text('Password is required.'), findsOneWidget);
+    expect(find.text('Sign in to YAW'), findsOneWidget);
+    expect(find.text('Secure authentication'), findsOneWidget);
+    expect(find.byType(TextFormField), findsNothing);
   });
 
-  testWidgets('login success enters authenticated shell', (tester) async {
+  testWidgets('WorkOS login success enters authenticated shell', (tester) async {
     final app = _appWithToken(null);
 
     await tester.pumpWidget(app);
     await tester.pumpAndSettle();
 
     await _openLogin(tester);
-    await tester.enterText(find.byType(EditableText).at(0), 'pilot@yaw.test');
-    await tester.enterText(find.byType(EditableText).at(1), 'password');
     await _tapVisible(tester, find.text('Sign In'));
     await tester.pumpAndSettle();
 
@@ -80,16 +76,13 @@ void main() {
     expect(find.text('My Profile'), findsOneWidget);
   });
 
-  testWidgets('login error is shown without token leakage', (tester) async {
+  testWidgets('WorkOS login error is shown without token leakage', (tester) async {
     final app = _appWithToken(
       null,
       handler: (request) async => _error(
-        'validation_failed',
-        'The provided credentials are incorrect.',
-        422,
-        errors: {
-          'email': ['The provided credentials are incorrect.'],
-        },
+        'forbidden',
+        'Secure sign-in could not be completed.',
+        403,
       ),
     );
 
@@ -97,15 +90,10 @@ void main() {
     await tester.pumpAndSettle();
 
     await _openLogin(tester);
-    await tester.enterText(find.byType(EditableText).at(0), 'bad@yaw.test');
-    await tester.enterText(find.byType(EditableText).at(1), 'wrong');
     await _tapVisible(tester, find.text('Sign In'));
     await tester.pumpAndSettle();
 
-    expect(
-      find.text('The provided credentials are incorrect.'),
-      findsOneWidget,
-    );
+    expect(find.textContaining('Secure sign-in'), findsWidgets);
     expect(find.textContaining('token'), findsNothing);
   });
 
@@ -158,7 +146,7 @@ void main() {
     expect(app.authController.state.status, AuthStatus.unauthenticated);
     expect(find.text('Yaw'), findsNothing);
     await _openLogin(tester);
-    expect(find.byType(TextFormField), findsNWidgets(2));
+
   });
 
   testWidgets(
@@ -197,8 +185,6 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Private previous session view'), findsNothing);
       await _openLogin(tester);
-      await tester.enterText(find.byType(EditableText).at(0), 'pilot@yaw.test');
-      await tester.enterText(find.byType(EditableText).at(1), 'password');
       await _tapVisible(tester, find.text('Sign In'));
       await tester.tap(find.text('Missions'));
       await tester.pumpAndSettle();
@@ -240,25 +226,11 @@ void main() {
           await tester.pumpAndSettle();
           expect(tester.takeException(), isNull);
           await _openLogin(tester);
-          await _tapVisible(tester, find.text('Sign In'));
-          expect(find.text('Email is required.'), findsOneWidget);
-          expect(find.text('Password is required.'), findsOneWidget);
+          expect(find.text('Sign in to YAW'), findsOneWidget);
+          expect(find.byType(TextFormField), findsNothing);
           expect(tester.takeException(), isNull);
 
-          tester.view.viewInsets = const FakeViewPadding(bottom: 240);
-          await tester.pumpAndSettle();
-          await tester.ensureVisible(find.byType(TextFormField).first);
-          await tester.enterText(
-            find.byType(EditableText).at(0),
-            'pilot@yaw.test',
-          );
-          await tester.ensureVisible(find.byType(TextFormField).last);
-          await tester.enterText(find.byType(EditableText).at(1), 'password');
           await _tapVisible(tester, find.text('Sign In'));
-          final error = find.text('The provided credentials are incorrect.');
-          await tester.ensureVisible(error);
-          await tester.pumpAndSettle();
-          expect(error.hitTestable(), findsOneWidget);
           expect(app.authController.state.status, AuthStatus.failure);
           expect(tester.takeException(), isNull);
           fail = false;
@@ -282,8 +254,7 @@ Future<void> _tapVisible(WidgetTester tester, Finder finder) async {
 }
 
 Future<void> _openLogin(WidgetTester tester) async {
-  final fields = find.byType(TextFormField);
-  if (fields.evaluate().length == 2) {
+  if (find.text('Welcome\nBack').evaluate().isNotEmpty) {
     return;
   }
 
@@ -294,7 +265,8 @@ Future<void> _openLogin(WidgetTester tester) async {
 
   await tester.pumpAndSettle();
   expect(find.text('Welcome\nBack'), findsOneWidget);
-  expect(find.byType(TextFormField), findsNWidgets(2));
+  expect(find.text('Sign in to YAW'), findsOneWidget);
+  expect(find.byType(TextFormField), findsNothing);
 }
 
 YawApp _appWithToken(
