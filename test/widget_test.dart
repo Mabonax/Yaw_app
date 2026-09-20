@@ -10,6 +10,9 @@ import 'package:yaw_app/core/auth/auth_controller.dart';
 import 'package:yaw_app/core/auth/auth_models.dart';
 import 'package:yaw_app/core/auth/auth_repository.dart';
 import 'package:yaw_app/core/storage/token_store.dart';
+import 'package:yaw_app/core/storage/operator_store.dart';
+import 'package:yaw_app/features/operators/data/operator_workspace_repository.dart';
+import 'package:yaw_app/features/operators/presentation/operator_workspace_controller.dart';
 import 'package:yaw_app/features/aircraft/data/aircraft_repository.dart';
 import 'package:yaw_app/features/aircraft/presentation/aircraft_controller.dart';
 import 'package:yaw_app/features/missions/data/mission_repository.dart';
@@ -312,6 +315,10 @@ YawApp _appWithToken(
     missionController: MissionController(
       repository: MissionRepository(apiClient: apiClient),
     ),
+    operatorWorkspaceController: OperatorWorkspaceController(
+      repository: OperatorWorkspaceRepository(apiClient: apiClient),
+      store: MemoryOperatorStore(),
+    ),
   );
 }
 
@@ -328,6 +335,9 @@ Future<http.Response> _defaultHandler(http.Request request) async {
   }
   if (request.url.path.endsWith('/me/pilot')) {
     return _ok({'pilot': AuthFixtures.pilotJson()});
+  }
+  if (request.url.path.endsWith('/me/operator-memberships')) {
+    return _ok({'operator_memberships': []});
   }
   if (request.url.path.endsWith('/me/operators')) {
     return _ok({
