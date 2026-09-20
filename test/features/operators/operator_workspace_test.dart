@@ -1,12 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:yaw_app/core/storage/operator_store.dart';
 import 'package:yaw_app/features/operators/data/operator_models.dart';
-import 'package:yaw_app/features/operators/presentation/operator_workspace_controller.dart';
-
-class FakeRepo {
-  FakeRepo(this.items);
-  List<OperatorMembership> items;
-}
 
 void main() {
   test('operator model identifies active and pending states', () {
