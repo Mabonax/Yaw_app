@@ -74,8 +74,8 @@ void main() {
     await _tapVisible(tester, find.text('Sign In'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Yaw'), findsOneWidget);
-    expect(find.text('My Profile'), findsOneWidget);
+    expect(app.authController.state.isAuthenticated, isTrue);
+    expect(find.text('Active API Operator'), findsOneWidget);
   });
 
   testWidgets('WorkOS login error is shown without token leakage', (tester) async {
@@ -100,7 +100,8 @@ void main() {
     await _tapVisible(tester, find.text('Sign In'));
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('Secure sign-in'), findsWidgets);
+    expect(app.authController.state.status, AuthStatus.failure);
+    expect(find.text('Sign-in unavailable'), findsOneWidget);
     expect(find.textContaining('token'), findsNothing);
   });
 
@@ -175,8 +176,7 @@ void main() {
       );
       await tester.pumpWidget(app);
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Missions'));
-      await tester.pumpAndSettle();
+      await _tapVisible(tester, find.text('Missions'));
       expect(missionCalls, 1);
       expect(find.text('Missions could not be loaded'), findsOneWidget);
       final context = tester.element(find.text('Missions could not be loaded'));
@@ -220,8 +220,6 @@ void main() {
             null,
             handler: (request) async {
               if (request.url.path.endsWith('/auth/workos/authorize')) {
-                final body = jsonDecode(request.body) as Map<String, dynamic>;
-                _lastWidgetWorkosState = body['state'] as String;
                 if (fail) {
                   return _error(
                     'validation_failed',
@@ -249,7 +247,7 @@ void main() {
           tester.view.resetViewInsets();
           await tester.pumpAndSettle();
           expect(app.authController.state.isAuthenticated, isTrue);
-          expect(find.text('Yaw'), findsOneWidget);
+          expect(find.text('Active API Operator'), findsOneWidget);
           expect(tester.takeException(), isNull);
         },
       );
@@ -290,7 +288,6 @@ YawApp _appWithToken(
   }
 
   final operatorStore = MemoryOperatorStore();
-  _lastWidgetWorkosState = '';
   final apiClient = ApiClient(
     baseUrl: Uri.parse('https://example.test/api/v1'),
     tokenProvider: tokenStore.readToken,
@@ -299,14 +296,22 @@ YawApp _appWithToken(
       await tokenStore.clear();
       await operatorStore.clear();
     },
-    httpClient: MockClient(handler ?? _defaultHandler),
+    httpClient: MockClient((request) async {
+      final path = request.url.path;
+      if (path.endsWith('/auth/workos/authorize')) {
+        final body = jsonDecode(request.body) as Map<String, dynamic>;
+        final state = body['state'] as String;
+        _widgetWorkosStates[request.hashCode] = state;
+      }
+      return (handler ?? _defaultHandler)(request);
+    }),
   );
 
   return YawApp(
     authController: AuthController(
       repository: AuthRepository(
         apiClient: apiClient,
-        workosBrowser: _WidgetWorkosBrowser(() => _lastWidgetWorkosState),
+        workosBrowser: _WidgetWorkosBrowser(() => _widgetWorkosStates.values.lastOrNull ?? ''),
       ),
       tokenStore: tokenStore,
     ),
@@ -325,8 +330,6 @@ YawApp _appWithToken(
 
 Future<http.Response> _defaultHandler(http.Request request) async {
   if (request.url.path.endsWith('/auth/workos/authorize')) {
-    final body = jsonDecode(request.body) as Map<String, dynamic>;
-    _lastWidgetWorkosState = body['state'] as String;
     return _ok({
       'authorization_url': 'https://api.workos.com/user_management/authorize',
       'redirect_uri': 'za.co.vmt.yaw://auth/callback',
@@ -393,7 +396,7 @@ Future<http.Response> _defaultHandler(http.Request request) async {
   return _error('not_found', 'Not found.', 404);
 }
 
-String _lastWidgetWorkosState = '';
+final Map<int, String> _widgetWorkosStates = <int, String>{};
 
 class _WidgetWorkosBrowser implements WorkosBrowser {
   const _WidgetWorkosBrowser(this.stateProvider);
