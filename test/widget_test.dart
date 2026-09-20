@@ -297,10 +297,15 @@ YawApp _appWithToken(
     tokenStore.saveToken(token);
   }
 
+  final operatorStore = MemoryOperatorStore();
   final apiClient = ApiClient(
     baseUrl: Uri.parse('https://example.test/api/v1'),
     tokenProvider: tokenStore.readToken,
-    onUnauthorized: tokenStore.clear,
+    operatorProvider: operatorStore.readOperatorId,
+    onUnauthorized: () async {
+      await tokenStore.clear();
+      await operatorStore.clear();
+    },
     httpClient: MockClient(handler ?? _defaultHandler),
   );
 
@@ -317,7 +322,7 @@ YawApp _appWithToken(
     ),
     operatorWorkspaceController: OperatorWorkspaceController(
       repository: OperatorWorkspaceRepository(apiClient: apiClient),
-      store: MemoryOperatorStore(),
+      store: operatorStore,
     ),
   );
 }
@@ -337,7 +342,15 @@ Future<http.Response> _defaultHandler(http.Request request) async {
     return _ok({'pilot': AuthFixtures.pilotJson()});
   }
   if (request.url.path.endsWith('/me/operator-memberships')) {
-    return _ok({'operator_memberships': []});
+    return _ok({'operator_memberships': [
+      {
+        'id': 50,
+        'operator': {'id': 5, 'name': 'Active API Operator'},
+        'role': 'operations_manager',
+        'status': 'active',
+        'source': 'admin',
+      }
+    ]});
   }
   if (request.url.path.endsWith('/me/operators')) {
     return _ok({
