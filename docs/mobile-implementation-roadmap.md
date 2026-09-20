@@ -204,3 +204,21 @@ Remaining M4 backend gaps:
 - API V1 does not expose direct logbook or aircraft folio list/detail routes; M4 displays only IDs and counts returned by post-flight propagation.
 
 Next recommended phase: add backend API routes for checklist capture, battery usage, defect reporting, and mission completion, then extend the mobile M4 workflow from close-out propagation into full mission execution capture.
+
+## 2026-09-15 - Pre-flight aeronautical briefing
+
+IMPLEMENTED: mission briefing, generation using current mission context, source/interpretation detail, source-health/currentness display, reviewed acknowledgement and revision history. All business/release calculations remain in the canonical backend. Flutter analysis and 24 combined briefing/mission tests pass. Full-suite authentication failures, Android build diagnostics and pending official-feed/device acceptance are documented in [integration evidence](aeronautical-information-integration.md).
+
+## FR-AIM-009 — 2026-09-16
+
+Authentication follows the existing onboarding flow with constrained scrolling, wrapping controls and preserved branding. Logout removes private routes and retires mission/aircraft controllers; the next account reloads its own domain data. Provider `health_status` and `reason` are rendered from Laravel. Failed briefing refresh clears actionable cached state and successful refresh restores only the server result.
+
+Final automation: Flutter analysis reports zero issues; all 62 tests pass, including three phone sizes at text scales 1.0/1.3 with keyboard insets and validation/API errors, private-route logout/relogin and briefing failure/recovery. Android debug build passes. Runtime/browser/external acceptance is reported separately in `C:\xampp\htdocs\myaviation\docs\10-verification\remediation\fr-aim-009-operational-acceptance.md`; compilation is not runtime proof. Required official ATNS access remains unavailable and release stays blocked.
+
+## Reference UI — 2026-09-17
+
+Implemented the six distinct supplied designs, responsive input and navigation,
+native document selection, and a separate design gallery. The normal app retains
+real authentication and server-owned operational state. See
+[screen implementation](screen-implementation.md) for validation and remaining
+registration/certificate API dependencies.

@@ -6,6 +6,7 @@ import '../../aircraft/presentation/aircraft_controller.dart';
 import '../../aircraft/presentation/aircraft_screens.dart';
 import '../data/mission_models.dart';
 import 'mission_controller.dart';
+import '../../aeronautical_information/presentation/briefing_screen.dart';
 
 class MissionListScreen extends StatefulWidget {
   const MissionListScreen({
@@ -166,6 +167,24 @@ class MissionDetailScreen extends StatelessWidget {
                   aircraftController: aircraftController,
                 ),
                 const SizedBox(height: YawSpacing.lg),
+                OutlinedButton.icon(
+                  icon: const Icon(Icons.description_outlined),
+                  label: const Text('Pre-flight briefing'),
+                  onPressed: () async {
+                    await Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => MissionBriefingScreen(
+                          controller: controller.createBriefingController(
+                            current.id,
+                          ),
+                        ),
+                      ),
+                    );
+                    if (context.mounted) {
+                      await controller.loadMissionDetail(current.id);
+                    }
+                  },
+                ),
                 MissionComplianceCard(compliance: compliance),
                 const SizedBox(height: YawSpacing.lg),
                 MissionPostFlightCard(

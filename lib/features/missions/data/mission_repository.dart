@@ -1,6 +1,7 @@
 import '../../../core/api/api_client.dart';
 import '../../../core/api/api_exception.dart';
 import 'mission_models.dart';
+import '../../aeronautical_information/data/briefing_models.dart';
 
 class MissionRepository {
   MissionRepository({required ApiClient apiClient}) : _apiClient = apiClient;
@@ -51,6 +52,29 @@ class MissionRepository {
     return YawPostFlightPropagation.fromJson(
       _asMap(response.data['post_flight_propagation']),
     );
+  }
+
+  Future<YawBriefingView> fetchBriefing(int id, {int? revision}) async {
+    final response = await _apiClient.get(
+      'missions/$id/briefing',
+      queryParameters: revision == null
+          ? null
+          : {'revision': revision.toString()},
+    );
+    return YawBriefingView.fromJson(response.data);
+  }
+
+  Future<YawBriefingView> generateBriefing(int id) async {
+    final response = await _apiClient.post('missions/$id/briefing');
+    return YawBriefingView.fromJson(response.data);
+  }
+
+  Future<YawBriefingView> acknowledgeBriefing(int id, int briefingId) async {
+    final response = await _apiClient.post(
+      'missions/$id/briefing/$briefingId/acknowledge',
+      body: {'reviewed': true},
+    );
+    return YawBriefingView.fromJson(response.data);
   }
 
   Future<YawMission> releaseMission(int id) async {

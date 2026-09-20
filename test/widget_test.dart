@@ -15,17 +15,46 @@ import 'package:yaw_app/features/aircraft/presentation/aircraft_controller.dart'
 import 'package:yaw_app/features/missions/data/mission_repository.dart';
 import 'package:yaw_app/features/missions/presentation/mission_controller.dart';
 import 'package:yaw_app/features/pilot/presentation/pilot_profile_screen.dart';
+import 'package:yaw_app/features/auth/presentation/role_selection_screen.dart';
 
 void main() {
+  testWidgets('account setup is reachable after a session restore failure', (
+    tester,
+  ) async {
+    final app = _appWithToken(
+      'unavailable-token',
+      handler: (request) async =>
+          _error('service_unavailable', 'Service unavailable', 503),
+    );
+    await tester.pumpWidget(app);
+    await tester.pumpAndSettle();
+    await _tapVisible(tester, find.text('Create one'));
+    expect(find.text('Create Your Account'), findsOneWidget);
+  });
+  testWidgets('role cards fit a standard phone without clipping', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(412, 915);
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      MaterialApp(home: RoleSelectionScreen(onContinue: (_) {})),
+    );
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    await _tapVisible(tester, find.text('Continue'));
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('shows login validation before authentication', (tester) async {
     final app = _appWithToken(null);
 
     await tester.pumpWidget(app);
     await tester.pumpAndSettle();
 
-    expect(find.text('Sign in to YAW'), findsOneWidget);
+    await _openLogin(tester);
 
-    await tester.tap(find.text('Sign in'));
+    await _tapVisible(tester, find.text('Sign In'));
     await tester.pumpAndSettle();
 
     expect(find.text('Email is required.'), findsOneWidget);
@@ -38,13 +67,14 @@ void main() {
     await tester.pumpWidget(app);
     await tester.pumpAndSettle();
 
+    await _openLogin(tester);
     await tester.enterText(find.byType(EditableText).at(0), 'pilot@yaw.test');
     await tester.enterText(find.byType(EditableText).at(1), 'password');
-    await tester.tap(find.text('Sign in'));
+    await _tapVisible(tester, find.text('Sign In'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Welcome, Yaw Pilot'), findsOneWidget);
-    expect(find.text('Linked Pilot'), findsWidgets);
+    expect(find.text('Yaw'), findsOneWidget);
+    expect(find.text('My Profile'), findsOneWidget);
   });
 
   testWidgets('login error is shown without token leakage', (tester) async {
@@ -63,9 +93,10 @@ void main() {
     await tester.pumpWidget(app);
     await tester.pumpAndSettle();
 
+    await _openLogin(tester);
     await tester.enterText(find.byType(EditableText).at(0), 'bad@yaw.test');
     await tester.enterText(find.byType(EditableText).at(1), 'wrong');
-    await tester.tap(find.text('Sign in'));
+    await _tapVisible(tester, find.text('Sign In'));
     await tester.pumpAndSettle();
 
     expect(
@@ -83,7 +114,7 @@ void main() {
       await tester.pumpWidget(app);
       await tester.pumpAndSettle();
 
-      expect(find.text('Welcome, Yaw Pilot'), findsOneWidget);
+      expect(find.text('Yaw'), findsOneWidget);
 
       await tester.tap(find.text('More'));
       await tester.pumpAndSettle();
@@ -116,11 +147,142 @@ void main() {
     await tester.pumpWidget(app);
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byTooltip('Sign out'));
+    await tester.tap(find.text('YP'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Sign out'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Sign in to YAW'), findsOneWidget);
+    expect(app.authController.state.status, AuthStatus.unauthenticated);
+    expect(find.text('Yaw'), findsNothing);
+    await _openLogin(tester);
+    expect(find.byType(TextFormField), findsNWidgets(2));
   });
+
+  testWidgets(
+    'logout removes private routes and the next login reloads domain state',
+    (tester) async {
+      var missionCalls = 0;
+      final app = _appWithToken(
+        'existing-token',
+        handler: (request) async {
+          if (request.url.path.endsWith('/missions') && missionCalls++ == 0) {
+            return _error(
+              'forbidden',
+              'Previous account permission failure',
+              403,
+            );
+          }
+          return _defaultHandler(request);
+        },
+      );
+      await tester.pumpWidget(app);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Missions'));
+      await tester.pumpAndSettle();
+      expect(missionCalls, 1);
+      expect(find.text('Missions could not be loaded'), findsOneWidget);
+      final context = tester.element(find.text('Missions could not be loaded'));
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) =>
+              const Scaffold(body: Text('Private previous session view')),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Private previous session view'), findsOneWidget);
+      await app.authController.logout();
+      await tester.pumpAndSettle();
+      expect(find.text('Private previous session view'), findsNothing);
+      await _openLogin(tester);
+      await tester.enterText(find.byType(EditableText).at(0), 'pilot@yaw.test');
+      await tester.enterText(find.byType(EditableText).at(1), 'password');
+      await _tapVisible(tester, find.text('Sign In'));
+      await tester.tap(find.text('Missions'));
+      await tester.pumpAndSettle();
+      expect(missionCalls, 2);
+      expect(find.text('Missions could not be loaded'), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  for (final size in [
+    const Size(320, 568),
+    const Size(393, 852),
+    const Size(412, 915),
+  ]) {
+    for (final scale in [1.0, 1.3]) {
+      testWidgets(
+        'auth usable at $size scale $scale with keyboard and errors',
+        (tester) async {
+          tester.view.devicePixelRatio = 1;
+          tester.view.physicalSize = size;
+          tester.platformDispatcher.textScaleFactorTestValue = scale;
+          addTearDown(tester.view.reset);
+          addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+          var fail = true;
+          final app = _appWithToken(
+            null,
+            handler: (request) async {
+              if (fail && request.url.path.endsWith('/auth/login')) {
+                return _error(
+                  'validation_failed',
+                  'The provided credentials are incorrect.',
+                  422,
+                );
+              }
+              return _defaultHandler(request);
+            },
+          );
+          await tester.pumpWidget(app);
+          await tester.pumpAndSettle();
+          expect(tester.takeException(), isNull);
+          await _openLogin(tester);
+          await _tapVisible(tester, find.text('Sign In'));
+          expect(find.text('Email is required.'), findsOneWidget);
+          expect(find.text('Password is required.'), findsOneWidget);
+          expect(tester.takeException(), isNull);
+
+          tester.view.viewInsets = const FakeViewPadding(bottom: 240);
+          await tester.pumpAndSettle();
+          await tester.ensureVisible(find.byType(TextFormField).first);
+          await tester.enterText(
+            find.byType(EditableText).at(0),
+            'pilot@yaw.test',
+          );
+          await tester.ensureVisible(find.byType(TextFormField).last);
+          await tester.enterText(find.byType(EditableText).at(1), 'password');
+          await _tapVisible(tester, find.text('Sign In'));
+          final error = find.text('The provided credentials are incorrect.');
+          await tester.ensureVisible(error);
+          await tester.pumpAndSettle();
+          expect(error.hitTestable(), findsOneWidget);
+          expect(app.authController.state.status, AuthStatus.failure);
+          expect(tester.takeException(), isNull);
+          fail = false;
+          await _tapVisible(tester, find.text('Sign In'));
+          tester.view.resetViewInsets();
+          await tester.pumpAndSettle();
+          expect(app.authController.state.isAuthenticated, isTrue);
+          expect(find.text('Yaw'), findsOneWidget);
+          expect(tester.takeException(), isNull);
+        },
+      );
+    }
+  }
+}
+
+Future<void> _tapVisible(WidgetTester tester, Finder finder) async {
+  await tester.ensureVisible(finder);
+  await tester.pumpAndSettle();
+  await tester.tap(finder);
+  await tester.pumpAndSettle();
+}
+
+Future<void> _openLogin(WidgetTester tester) async {
+  expect(find.text('Get Started'), findsOneWidget);
+  await _tapVisible(tester, find.text('Get Started'));
+  expect(find.text('Welcome\nBack'), findsOneWidget);
+  expect(find.byType(TextFormField), findsNWidgets(2));
 }
 
 YawApp _appWithToken(

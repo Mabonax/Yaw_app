@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
-
-import '../../../app/theme/yaw_tokens.dart';
 import '../../../core/auth/auth_controller.dart';
-import '../../../core/auth/auth_models.dart';
-import '../../../core/widgets/yaw_widgets.dart';
 import '../../aircraft/presentation/aircraft_controller.dart';
+import '../../missions/data/mission_models.dart';
 import '../../missions/presentation/mission_controller.dart';
 import '../../pilot/presentation/pilot_profile_screen.dart';
+import '../../onboarding/presentation/setup_widgets.dart';
+import '../../onboarding/data/registration_draft.dart';
+import 'dashboard_view.dart';
 
 class HomeDashboardScreen extends StatefulWidget {
   const HomeDashboardScreen({
@@ -14,12 +14,12 @@ class HomeDashboardScreen extends StatefulWidget {
     required this.authController,
     required this.aircraftController,
     required this.missionController,
+    this.onNavigate,
   });
-
   final AuthController authController;
   final AircraftController aircraftController;
   final MissionController missionController;
-
+  final ValueChanged<int>? onNavigate;
   @override
   State<HomeDashboardScreen> createState() => _HomeDashboardScreenState();
 }
@@ -36,414 +36,185 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return ListenableBuilder(
-      listenable: Listenable.merge([
-        widget.authController,
-        widget.aircraftController,
-        widget.missionController,
-      ]),
-      builder: (context, _) {
-        final state = widget.authController.state;
-        final user = state.user;
+  Future<void> _refresh() async {
+    await Future.wait([
+      widget.authController.refreshIdentityContext(),
+      widget.aircraftController.loadAircraft(refresh: true),
+      widget.missionController.loadMissions(refresh: true),
+    ]);
+  }
 
-        return RefreshIndicator(
-          onRefresh: () async {
-            await Future.wait([
-              widget.authController.refreshIdentityContext(),
-              widget.aircraftController.loadAircraft(refresh: true),
-              widget.missionController.loadMissions(refresh: true),
-            ]);
-          },
-          child: ListView(
-            padding: const EdgeInsets.all(YawSpacing.page),
-            children: [
-              YawSectionHeader(
-                title: user == null
-                    ? 'Operational overview'
-                    : 'Welcome, ${user.name}',
-                subtitle: 'Authenticated YAW mobile workspace.',
-              ),
-              if (state.contextErrorMessage != null) ...[
-                YawErrorState(
-                  title: 'Context refresh failed',
-                  message: state.contextErrorMessage!,
-                  action: YawSecondaryButton(
-                    label: 'Retry',
-                    icon: Icons.refresh,
-                    onPressed: widget.authController.refreshIdentityContext,
+  void _action(int index) {
+    if (index == 2) {
+      final pilot = widget.authController.state.pilot;
+      if (pilot == null) {
+        _info(
+          'Pilot Profile',
+          'Your account does not have a pilot profile yet. Contact your operator to complete your profile.',
+        );
+        return;
+      }
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => PilotProfileScreen(pilot: pilot),
+        ),
+      );
+      return;
+    }
+    widget.onNavigate?.call(switch (index) {
+      0 => 1,
+      1 => 2,
+      _ => 3,
+    });
+  }
+
+  void _info(String title, String message) => showDialog<void>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: Text(title),
+      content: Text(message),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Close'),
+        ),
+      ],
+    ),
+  );
+  void _account() => showModalBottomSheet<void>(
+    context: context,
+    showDragHandle: true,
+    builder: (context) => SafeArea(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ListTile(
+            title: Text(widget.authController.state.user?.name ?? 'My Account'),
+            subtitle: Text(widget.authController.state.user?.email ?? ''),
+            leading: const Icon(Icons.person_outline),
+          ),
+          ListTile(
+            leading: const Icon(Icons.refresh),
+            title: const Text('Refresh account context'),
+            onTap: () {
+              Navigator.pop(context);
+              _refresh();
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.logout),
+            title: const Text('Sign out'),
+            onTap: () {
+              Navigator.pop(context);
+              widget.authController.logout();
+            },
+          ),
+        ],
+      ),
+    ),
+  );
+  @override
+  Widget build(BuildContext context) => ListenableBuilder(
+    listenable: Listenable.merge([
+      widget.authController,
+      widget.aircraftController,
+      widget.missionController,
+    ]),
+    builder: (context, _) {
+      final auth = widget.authController.state;
+      final aircraft = widget.aircraftController.state;
+      final missions = widget.missionController.state;
+      final now = DateTime.now();
+      final upcoming =
+          missions.missions.where((m) {
+              final date = DateTime.tryParse(m.plannedStartAt ?? '');
+              return date != null &&
+                  !date.isBefore(now) &&
+                  ![
+                    YawMissionLifecycleStatus.cancelled,
+                    YawMissionLifecycleStatus.closed,
+                    YawMissionLifecycleStatus.completed,
+                  ].contains(m.lifecycleStatus);
+            }).toList()
+            ..sort((a, b) => a.plannedStartAt!.compareTo(b.plannedStartAt!));
+      final recent =
+          missions.missions.where((m) => m.createdAt != null).toList()
+            ..sort((a, b) => b.createdAt!.compareTo(a.createdAt!));
+      final errors = [
+        auth.contextErrorMessage,
+        aircraft.errorMessage,
+        missions.errorMessage,
+      ].whereType<String>().toList();
+      return RefreshIndicator(
+        onRefresh: _refresh,
+        child: DashboardView(
+          name: auth.user?.name ?? 'Pilot',
+          aircraftCount:
+              [
+                AircraftLoadStatus.loaded,
+                AircraftLoadStatus.empty,
+              ].contains(aircraft.status)
+              ? '${aircraft.totalAircraft}'
+              : '—',
+          missionCount:
+              [
+                MissionLoadStatus.loaded,
+                MissionLoadStatus.empty,
+              ].contains(missions.status)
+              ? '${missions.missions.where((m) => [YawMissionLifecycleStatus.planning, YawMissionLifecycleStatus.approved, YawMissionLifecycleStatus.readyForFlight].contains(m.lifecycleStatus)).length}'
+              : '—',
+          loading:
+              auth.isContextLoading ||
+              aircraft.status == AircraftLoadStatus.loading ||
+              missions.status == MissionLoadStatus.loading,
+          notice: errors.isEmpty
+              ? null
+              : Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: SetupCard(
+                    child: Column(
+                      children: [
+                        Text(
+                          errors.join('\n'),
+                          style: setupText(10, color: Colors.red.shade700),
+                        ),
+                        TextButton(
+                          onPressed: _refresh,
+                          child: const Text('Retry'),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-                const SizedBox(height: YawSpacing.lg),
-              ],
-              if (state.isContextLoading) ...[
-                const YawLoadingState(message: 'Refreshing account context...'),
-                const SizedBox(height: YawSpacing.lg),
-              ],
-              _AccountSummary(user: user),
-              const SizedBox(height: YawSpacing.lg),
-              _PilotSummary(
-                pilot: state.pilot,
-                onOpenProfile: state.pilot == null
-                    ? null
-                    : () => Navigator.of(context).push(
-                        MaterialPageRoute<void>(
-                          builder: (_) =>
-                              PilotProfileScreen(pilot: state.pilot!),
-                        ),
-                      ),
+          activity: [
+            for (final m in recent.take(4))
+              DashboardEntry(
+                'Mission added',
+                m.displayTitle,
+                Icons.map_outlined,
+                trailing: formatSetupDate(DateTime.tryParse(m.createdAt ?? '')),
               ),
-              const SizedBox(height: YawSpacing.lg),
-              _OperatorSummary(operators: state.operators),
-              const SizedBox(height: YawSpacing.lg),
-              _AircraftOperationalSummary(
-                state: widget.aircraftController.state,
-                onRetry: widget.aircraftController.loadAircraft,
+          ],
+          upcoming: [
+            for (final m in upcoming.take(3))
+              DashboardEntry(
+                formatSetupDate(DateTime.tryParse(m.plannedStartAt ?? '')),
+                m.displaySubtitle,
+                Icons.calendar_month_outlined,
               ),
-              const SizedBox(height: YawSpacing.lg),
-              _MissionOperationalSummary(
-                state: widget.missionController.state,
-                onRetry: widget.missionController.loadMissions,
-              ),
-            ],
+          ],
+          onAction: _action,
+          onAccount: _account,
+          onNotifications: () => _info(
+            'Notifications',
+            'Your notifications will appear here when the notification service is available.',
           ),
-        );
-      },
-    );
-  }
-}
-
-class _AccountSummary extends StatelessWidget {
-  const _AccountSummary({required this.user});
-
-  final YawUser? user;
-
-  @override
-  Widget build(BuildContext context) {
-    return YawSectionCard(
-      title: 'Account',
-      subtitle: 'Current authenticated user from /api/v1/me.',
-      child: Column(
-        children: [
-          YawInfoRow(label: 'Name', value: user?.name ?? 'Unavailable'),
-          YawInfoRow(
-            label: 'Email',
-            value: user?.email.isNotEmpty == true ? user!.email : 'Unavailable',
+          onLearnMore: () => _info(
+            'Smarter Operations. Safer Skies.',
+            'Plan missions, manage aircraft and review compliance from your YAW workspace. Pull down on Home to refresh your operational information.',
           ),
-          YawInfoRow(
-            label: 'Role',
-            value: _formatToken(user?.role) ?? 'Not supplied',
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _PilotSummary extends StatelessWidget {
-  const _PilotSummary({required this.pilot, required this.onOpenProfile});
-
-  final YawPilotProfile? pilot;
-  final VoidCallback? onOpenProfile;
-
-  @override
-  Widget build(BuildContext context) {
-    if (pilot == null) {
-      return const YawEmptyState(
-        title: 'Pilot profile required',
-        message:
-            'This account does not currently have a linked pilot profile. The backend exposes read-only current pilot context, but no mobile self-service profile creation endpoint yet.',
-      );
-    }
-
-    return YawSectionCard(
-      title: 'Pilot identity',
-      subtitle: 'Linked profile from /api/v1/me/pilot.',
-      action: TextButton(onPressed: onOpenProfile, child: const Text('View')),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Wrap(
-            spacing: YawSpacing.sm,
-            runSpacing: YawSpacing.sm,
-            children: [
-              YawStatusChip(
-                label:
-                    _formatToken(pilot!.profileStatus) ??
-                    'Profile status unknown',
-                tone: pilot!.isActive
-                    ? YawStatusTone.healthy
-                    : YawStatusTone.warning,
-              ),
-              if (pilot!.medicalStatus != null)
-                YawStatusChip(
-                  label: 'Medical ${_formatToken(pilot!.medicalStatus)!}',
-                  tone: pilot!.medicalStatus == 'valid'
-                      ? YawStatusTone.healthy
-                      : YawStatusTone.warning,
-                ),
-            ],
-          ),
-          const SizedBox(height: YawSpacing.md),
-          YawInfoRow(label: 'Display name', value: pilot!.displayName),
-          YawInfoRow(
-            label: 'RPC category',
-            value: _formatToken(pilot!.rpcCategory) ?? 'Not supplied',
-          ),
-          YawInfoRow(
-            label: 'SACAA certificate',
-            value: pilot!.sacaaCertificateNumber ?? 'Not supplied',
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _OperatorSummary extends StatelessWidget {
-  const _OperatorSummary({required this.operators});
-
-  final List<YawOperatorContext> operators;
-
-  @override
-  Widget build(BuildContext context) {
-    if (operators.isEmpty) {
-      return const YawEmptyState(
-        title: 'No operator relationship',
-        message:
-            'No active operator memberships were returned for this account.',
-      );
-    }
-
-    return YawSectionCard(
-      title: 'Operator context',
-      subtitle: operators.length == 1
-          ? 'One active operator relationship.'
-          : '${operators.length} operator relationships available.',
-      child: Column(
-        children: [
-          for (final operator in operators)
-            YawListTile(
-              title: operator.displayName,
-              subtitle: [
-                if (operator.uasocNumber != null) operator.uasocNumber!,
-                if (operator.membershipRole != null)
-                  _formatToken(operator.membershipRole)!,
-                if (operator.isGlobal) 'Global access',
-              ].join(' · '),
-              leading: const Icon(
-                Icons.business_outlined,
-                color: YawColors.aviationBlue,
-              ),
-              trailing: YawStatusChip(
-                label: _formatToken(operator.membershipStatus) ?? 'Unknown',
-                tone: operator.isGlobal
-                    ? YawStatusTone.info
-                    : YawStatusTone.healthy,
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-class _AircraftOperationalSummary extends StatelessWidget {
-  const _AircraftOperationalSummary({
-    required this.state,
-    required this.onRetry,
-  });
-
-  final AircraftState state;
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    if (state.status == AircraftLoadStatus.loading ||
-        state.status == AircraftLoadStatus.idle) {
-      return const YawLoadingState(message: 'Loading aircraft readiness...');
-    }
-
-    if (state.status == AircraftLoadStatus.failure) {
-      return YawErrorState(
-        title: 'Aircraft summary unavailable',
-        message: state.errorMessage ?? 'Aircraft could not be loaded.',
-        action: YawSecondaryButton(
-          label: 'Retry',
-          icon: Icons.refresh,
-          onPressed: onRetry,
         ),
       );
-    }
-
-    if (state.status == AircraftLoadStatus.empty) {
-      return const YawEmptyState(
-        title: 'No aircraft assigned',
-        message:
-            'No mobile aircraft records were returned for this authenticated account.',
-      );
-    }
-
-    return YawSectionCard(
-      title: 'Aircraft readiness',
-      subtitle: 'Counts are derived from /api/v1/aircraft readiness results.',
-      child: Wrap(
-        spacing: YawSpacing.md,
-        runSpacing: YawSpacing.md,
-        children: [
-          _DashboardMetric(
-            label: 'Fleet',
-            value: '${state.totalAircraft}',
-            icon: Icons.flight_outlined,
-            tone: YawStatusTone.info,
-          ),
-          _DashboardMetric(
-            label: 'Ready',
-            value: '${state.readyAircraft}',
-            icon: Icons.check_circle_outline,
-            tone: YawStatusTone.healthy,
-          ),
-          _DashboardMetric(
-            label: 'Review',
-            value: '${state.reviewAircraft}',
-            icon: Icons.warning_amber_outlined,
-            tone: YawStatusTone.warning,
-          ),
-          _DashboardMetric(
-            label: 'Blocked',
-            value: '${state.blockedAircraft}',
-            icon: Icons.block_outlined,
-            tone: YawStatusTone.critical,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _MissionOperationalSummary extends StatelessWidget {
-  const _MissionOperationalSummary({
-    required this.state,
-    required this.onRetry,
-  });
-
-  final MissionState state;
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    if (state.status == MissionLoadStatus.loading ||
-        state.status == MissionLoadStatus.idle) {
-      return const YawLoadingState(message: 'Loading mission compliance...');
-    }
-
-    if (state.status == MissionLoadStatus.failure) {
-      return YawErrorState(
-        title: 'Mission summary unavailable',
-        message: state.errorMessage ?? 'Missions could not be loaded.',
-        action: YawSecondaryButton(
-          label: 'Retry',
-          icon: Icons.refresh,
-          onPressed: onRetry,
-        ),
-      );
-    }
-
-    if (state.status == MissionLoadStatus.empty) {
-      return const YawEmptyState(
-        title: 'No missions available',
-        message:
-            'No mission records were returned for this authenticated account.',
-      );
-    }
-
-    return YawSectionCard(
-      title: 'Mission compliance',
-      subtitle: 'Counts are derived from /api/v1/missions compliance results.',
-      child: Wrap(
-        spacing: YawSpacing.md,
-        runSpacing: YawSpacing.md,
-        children: [
-          _DashboardMetric(
-            label: 'Missions',
-            value: '${state.totalMissions}',
-            icon: Icons.route_outlined,
-            tone: YawStatusTone.info,
-          ),
-          _DashboardMetric(
-            label: 'Ready',
-            value: '${state.readyMissions}',
-            icon: Icons.check_circle_outline,
-            tone: YawStatusTone.healthy,
-          ),
-          _DashboardMetric(
-            label: 'Warning',
-            value: '${state.warningMissions}',
-            icon: Icons.warning_amber_outlined,
-            tone: YawStatusTone.warning,
-          ),
-          _DashboardMetric(
-            label: 'Blocked',
-            value: '${state.blockedMissions}',
-            icon: Icons.block_outlined,
-            tone: YawStatusTone.critical,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _DashboardMetric extends StatelessWidget {
-  const _DashboardMetric({
-    required this.label,
-    required this.value,
-    required this.icon,
-    required this.tone,
-  });
-
-  final String label;
-  final String value;
-  final IconData icon;
-  final YawStatusTone tone;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = tone.colors;
-
-    return SizedBox(
-      width: 132,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: colors.background,
-          borderRadius: BorderRadius.circular(YawRadius.md),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(YawSpacing.md),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(icon, color: colors.foreground),
-              const SizedBox(height: YawSpacing.sm),
-              Text(value, style: Theme.of(context).textTheme.titleLarge),
-              Text(label, overflow: TextOverflow.ellipsis),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-String? _formatToken(String? value) {
-  if (value == null || value.isEmpty) {
-    return null;
-  }
-
-  return value
-      .split('_')
-      .where((part) => part.isNotEmpty)
-      .map((part) => '${part[0].toUpperCase()}${part.substring(1)}')
-      .join(' ');
+    },
+  );
 }

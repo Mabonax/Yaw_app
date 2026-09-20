@@ -132,6 +132,43 @@ class AuthController extends ChangeNotifier {
     }
   }
 
+  Future<bool> loginWithWorkos({bool signUp = false}) async {
+    if (_state.isSubmitting) return false;
+    _state = const AuthState(
+      status: AuthStatus.unauthenticated,
+      isSubmitting: true,
+    );
+    notifyListeners();
+    var stored = false;
+    try {
+      final session = await _repository.loginWithWorkos(signUp: signUp);
+      await _tokenStore.saveToken(session.token);
+      stored = true;
+      final context = await _repository.loadIdentityContext();
+      _state = _authenticatedState(context);
+      notifyListeners();
+      return true;
+    } catch (error) {
+      if (stored) {
+        try {
+          await _repository.logout();
+        } catch (_) {
+          /* Local cleanup still runs. */
+        }
+      }
+      await _tokenStore.clear();
+      _state = AuthState(
+        status: AuthStatus.failure,
+        errorMessage: error is ApiException
+            ? _messageForApiError(error)
+            : 'Secure sign-in could not be completed. Please try again.',
+        fieldErrors: error is ApiException ? error.errors : null,
+      );
+      notifyListeners();
+      return false;
+    }
+  }
+
   Future<void> refreshIdentityContext() async {
     if (!_state.isAuthenticated) {
       return;

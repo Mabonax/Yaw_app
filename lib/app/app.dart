@@ -7,6 +7,7 @@ import '../core/config/app_config.dart';
 import '../core/storage/token_store.dart';
 import '../features/aircraft/data/aircraft_repository.dart';
 import '../features/aircraft/presentation/aircraft_controller.dart';
+import '../features/auth/presentation/auth_visuals.dart';
 import '../features/missions/data/mission_repository.dart';
 import '../features/missions/presentation/mission_controller.dart';
 import 'router/yaw_router.dart';
@@ -53,6 +54,7 @@ class YawApp extends StatelessWidget {
       title: 'YAW',
       debugShowCheckedModeBanner: false,
       theme: YawTheme.light(),
+      scrollBehavior: const AuthNoStretchScrollBehavior(),
       home: YawRouter(
         authController: authController,
         aircraftController: aircraftController,

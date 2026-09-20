@@ -36,7 +36,9 @@ dependencies:
   cupertino_icons: ^1.0.8
   http: ^1.6.0
   flutter_secure_storage: ^11.1.1
-  flutter_svg: ^2.3.0
+  file_selector: ^1.1.0
+  flutter_web_auth_2: ^5.1.0
+  crypto: ^3.0.7
 
 dev_dependencies:
   flutter_test:
@@ -61,8 +63,18 @@ flutter:
   uses-material-design: true
 
   assets:
-    - assets/yaw logo versions/SVG/
-    - assets/yaw logo versions/png logo/
+    - assets/brand/yaw_logo_1x/
+    - assets/role/
+    - assets/onboarding/
+    - assets/splash/
+    - assets/screens/
+
+  fonts:
+    - family: Poppins
+      fonts:
+        - asset: assets/fonts/Poppins-Regular.ttf
+        - asset: assets/fonts/Poppins-SemiBold.ttf
+          weight: 600
 
   # To add assets to your application, add an assets section, like this:
   # assets:

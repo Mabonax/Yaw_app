@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import '../../../core/api/api_exception.dart';
 import '../data/mission_models.dart';
 import '../data/mission_repository.dart';
+import '../../aeronautical_information/presentation/briefing_controller.dart';
 
 enum MissionLoadStatus { idle, loading, loaded, empty, failure }
 
@@ -122,6 +123,24 @@ class MissionController extends ChangeNotifier {
     : _repository = repository;
 
   final MissionRepository _repository;
+
+  // A new authenticated session gets independent data and in-flight results.
+  MissionController forSession() => MissionController(repository: _repository);
+  bool _disposed = false;
+
+  @override
+  void notifyListeners() {
+    if (!_disposed) super.notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
+  }
+
+  BriefingController createBriefingController(int missionId) =>
+      BriefingController(repository: _repository, missionId: missionId);
 
   MissionState _state = const MissionState();
 

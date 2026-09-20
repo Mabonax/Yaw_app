@@ -238,3 +238,20 @@ MissionDetailScreen
 The post-flight write boundary is intentionally narrow. Flutter sends the exact API request accepted by `PropagatePostFlightRequest` and treats the backend response as authoritative for mission actuals, propagation state, pilot logbook id, aircraft folio id, battery counts, flight tracks, and defect counts. Server-owned fields such as duration, propagation state, readiness status, logbook id, and folio id are never sent by the client.
 
 Battery usage, defect reporting, checklist capture, direct logbook browsing, and direct aircraft folio browsing stay behind explicit API-gap states until API V1 exposes mobile-safe JSON routes.
+
+## Aeronautical information - 2026-09-15
+
+The [aeronautical information module](aeronautical-information-integration.md) adds server-presented briefing/source models, a scoped ChangeNotifier controller, briefing and item-detail screens. MissionRepository owns the verified API calls. Server decisions remain authoritative; network failure clears cached actionable state. Mission detail links to the workflow and refreshes after returning.
+
+## FR-AIM-009 — 2026-09-16
+
+Authentication follows the existing onboarding flow with constrained scrolling, wrapping controls and preserved branding. Logout removes private routes and retires mission/aircraft controllers; the next account reloads its own domain data. Provider `health_status` and `reason` are rendered from Laravel. Failed briefing refresh clears actionable cached state and successful refresh restores only the server result.
+
+Final automation: Flutter analysis reports zero issues; all 62 tests pass, including three phone sizes at text scales 1.0/1.3 with keyboard insets and validation/API errors, private-route logout/relogin and briefing failure/recovery. Android debug build passes. Runtime/browser/external acceptance is reported separately in `C:\xampp\htdocs\myaviation\docs\10-verification\remediation\fr-aim-009-operational-acceptance.md`; compilation is not runtime proof. Required official ATNS access remains unavailable and release stays blocked.
+
+## Reference screen implementation — 2026-09-17
+
+Pilot/aircraft/certification/review setup and the scenic dashboard now use native
+Flutter controls based on the supplied screen references. The setup draft has no
+server write authority; mobile registration and certification writes remain API
+gaps. See [screen implementation and verification](screen-implementation.md).

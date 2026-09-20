@@ -81,6 +81,22 @@ class AircraftController extends ChangeNotifier {
 
   final AircraftRepository _repository;
 
+  // A new authenticated session gets independent data and in-flight results.
+  AircraftController forSession() =>
+      AircraftController(repository: _repository);
+  bool _disposed = false;
+
+  @override
+  void notifyListeners() {
+    if (!_disposed) super.notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
+  }
+
   AircraftState _state = const AircraftState();
 
   AircraftState get state => _state;

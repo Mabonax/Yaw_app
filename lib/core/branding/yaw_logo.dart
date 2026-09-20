@@ -1,15 +1,15 @@
 import 'package:flutter/widgets.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 
 import 'yaw_brand_assets.dart';
 
 enum YawLogoVariant {
+  full,
+  fullOnDark,
   horizontal,
   horizontalOnDark,
   stacked,
   stackedOnDark,
   icon,
-  appIconWithText,
 }
 
 class YawLogo extends StatelessWidget {
@@ -26,22 +26,23 @@ class YawLogo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SvgPicture.asset(
+    return Image.asset(
       _assetFor(variant),
       height: height,
       fit: fit,
-      semanticsLabel: 'YAW logo',
+      semanticLabel: 'YAW logo',
     );
   }
 
   static String _assetFor(YawLogoVariant variant) {
     return switch (variant) {
+      YawLogoVariant.full => YawBrandAssets.logoFull,
+      YawLogoVariant.fullOnDark => YawBrandAssets.logoFullOnDark,
       YawLogoVariant.horizontal => YawBrandAssets.logoHorizontal,
       YawLogoVariant.horizontalOnDark => YawBrandAssets.logoHorizontalOnDark,
       YawLogoVariant.stacked => YawBrandAssets.logoStacked,
       YawLogoVariant.stackedOnDark => YawBrandAssets.logoStackedOnDark,
       YawLogoVariant.icon => YawBrandAssets.appIcon,
-      YawLogoVariant.appIconWithText => YawBrandAssets.appIconWithText,
     };
   }
 }

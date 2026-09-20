@@ -90,3 +90,16 @@ M3 implementation uses only current API V1 read routes for mission visibility/co
 | Aircraft folio browsing | FlightFolios | `AircraftFlightFolio` is created by propagation | No API V1 folio list/detail route | View aircraft folio records from mobile | GET | `/api/v1/aircraft/{aircraft}/flight-folio` | filters | folio entries, maintenance/battery/defect evidence | `AircraftFlightFolio` presenters | Medium |
 
 M4 implementation uses only the current post-flight propagation API for writes. It does not create fake battery, defect, logbook, or folio records on-device; those remain server-owned operational records.
+
+## Aeronautical information API alignment - 2026-09-15
+
+Implemented backend and consumed mobile routes: GET/POST `/api/v1/missions/{mission}/briefing` and POST `/api/v1/missions/{mission}/briefing/{briefing}/acknowledge`. Historical revision selection uses the same GET with `revision`. Acknowledgement sends only the reviewed declaration and receives current server state. Register/detail API routes are available; mission item detail uses the immutable snapshot payload. Mission release and planning API gaps above remain unchanged. See [integration evidence](aeronautical-information-integration.md).
+
+## Setup UI boundary — 2026-09-17
+
+Verified routes/api.php still has no mobile registration, pilot-profile mutation,
+physical aircraft onboarding or pilot-certificate submission route. The new setup
+screens retain a local draft and stop at a clear unavailable-service message.
+Document selection is local only. No account/verification success or certificate
+validity is fabricated. Aggregate active-certificate/expiry metrics remain
+unavailable in the production dashboard until presented by the backend.

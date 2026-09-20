@@ -1,16 +1,19 @@
 class YawBrandAssets {
   const YawBrandAssets._();
 
-  static const logoHorizontal =
-      'assets/yaw logo versions/SVG/logo horizontal.svg';
+  static const splashBackground = 'assets/splash/yaw_sky_mountain.png';
+  static const onboardingBackground =
+      'assets/onboarding/yaw_onboarding_mountain.png';
+  static const roleBackground = 'assets/role/yaw_role_mountain.png';
+
+  static const logoFull = 'assets/brand/yaw_logo_1x/full_logo.png';
+  static const logoFullOnDark =
+      'assets/brand/yaw_logo_1x/full_logo_on_black.png';
+  static const logoHorizontal = 'assets/brand/yaw_logo_1x/logo_horizontal.png';
   static const logoHorizontalOnDark =
-      'assets/yaw logo versions/SVG/logo horizontal on black bg.svg';
-  static const logoStacked = 'assets/yaw logo versions/SVG/logo stacked.svg';
+      'assets/brand/yaw_logo_1x/logo_horizontal_on_black.png';
+  static const logoStacked = 'assets/brand/yaw_logo_1x/logo_stacked.png';
   static const logoStackedOnDark =
-      'assets/yaw logo versions/SVG/logo stacked on black bg.svg';
-  static const appIcon = 'assets/yaw logo versions/SVG/icon.svg';
-  static const appIconOutline =
-      'assets/yaw logo versions/SVG/app icon outline rounded rectagle.svg';
-  static const appIconWithText =
-      'assets/yaw logo versions/SVG/app icon with text rounded rectagle.svg';
+      'assets/brand/yaw_logo_1x/logo_stacked_on_black.png';
+  static const appIcon = 'assets/brand/yaw_logo_1x/icon.png';
 }
