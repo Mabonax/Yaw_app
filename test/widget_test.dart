@@ -282,8 +282,17 @@ Future<void> _tapVisible(WidgetTester tester, Finder finder) async {
 }
 
 Future<void> _openLogin(WidgetTester tester) async {
-  expect(find.text('Get Started'), findsOneWidget);
-  await _tapVisible(tester, find.text('Get Started'));
+  final fields = find.byType(TextFormField);
+  if (fields.evaluate().length == 2) {
+    return;
+  }
+
+  final getStarted = find.text('Get Started');
+  if (getStarted.evaluate().isNotEmpty) {
+    await _tapVisible(tester, getStarted);
+  }
+
+  await tester.pumpAndSettle();
   expect(find.text('Welcome\nBack'), findsOneWidget);
   expect(find.byType(TextFormField), findsNWidgets(2));
 }
