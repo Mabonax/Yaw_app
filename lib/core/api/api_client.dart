@@ -9,12 +9,14 @@ import 'api_exception.dart';
 
 typedef TokenProvider = Future<String?> Function();
 typedef UnauthorizedHandler = Future<void> Function();
+typedef OperatorProvider = Future<int?> Function();
 
 class ApiClient {
   ApiClient({
     required this.baseUrl,
     required this.tokenProvider,
     this.onUnauthorized,
+    this.operatorProvider,
     http.Client? httpClient,
     this.timeout = const Duration(seconds: 20),
   }) : _httpClient = httpClient ?? http.Client();
@@ -22,6 +24,7 @@ class ApiClient {
   final Uri baseUrl;
   final TokenProvider tokenProvider;
   final UnauthorizedHandler? onUnauthorized;
+  final OperatorProvider? operatorProvider;
   final http.Client _httpClient;
   final Duration timeout;
 
@@ -53,11 +56,13 @@ class ApiClient {
   }) async {
     final uri = _resolve(path, queryParameters);
     final token = await tokenProvider();
+    final operatorId = operatorProvider == null ? null : await operatorProvider!.call();
     final headers = <String, String>{
       HttpHeaders.acceptHeader: 'application/json',
       HttpHeaders.contentTypeHeader: 'application/json',
       if (token != null && token.isNotEmpty)
         HttpHeaders.authorizationHeader: 'Bearer $token',
+      if (operatorId != null) 'X-YAW-Operator': '$operatorId',
     };
 
     try {
