@@ -9,6 +9,8 @@ import 'package:yaw_app/core/api/api_client.dart';
 import 'package:yaw_app/core/auth/auth_controller.dart';
 import 'package:yaw_app/core/auth/auth_models.dart';
 import 'package:yaw_app/core/auth/auth_repository.dart';
+import 'package:yaw_app/core/auth/workos_browser.dart';
+import 'package:yaw_app/core/api/api_exception.dart';
 import 'package:yaw_app/core/storage/token_store.dart';
 import 'package:yaw_app/core/storage/operator_store.dart';
 import 'package:yaw_app/features/operators/data/operator_workspace_repository.dart';
@@ -79,11 +81,16 @@ void main() {
   testWidgets('WorkOS login error is shown without token leakage', (tester) async {
     final app = _appWithToken(
       null,
-      handler: (request) async => _error(
-        'forbidden',
-        'Secure sign-in could not be completed.',
-        403,
-      ),
+      handler: (request) async {
+        if (request.url.path.endsWith('/auth/workos/authorize')) {
+          return _error(
+            'forbidden',
+            'Secure sign-in could not be completed.',
+            403,
+          );
+        }
+        return _defaultHandler(request);
+      },
     );
 
     await tester.pumpWidget(app);
@@ -212,12 +219,16 @@ void main() {
           final app = _appWithToken(
             null,
             handler: (request) async {
-              if (fail && request.url.path.endsWith('/auth/login')) {
-                return _error(
-                  'validation_failed',
-                  'The provided credentials are incorrect.',
-                  422,
-                );
+              if (request.url.path.endsWith('/auth/workos/authorize')) {
+                final body = jsonDecode(request.body) as Map<String, dynamic>;
+                _lastWidgetWorkosState = body['state'] as String;
+                if (fail) {
+                  return _error(
+                    'validation_failed',
+                    'Sign-in could not be started.',
+                    422,
+                  );
+                }
               }
               return _defaultHandler(request);
             },
@@ -279,6 +290,7 @@ YawApp _appWithToken(
   }
 
   final operatorStore = MemoryOperatorStore();
+  _lastWidgetWorkosState = '';
   final apiClient = ApiClient(
     baseUrl: Uri.parse('https://example.test/api/v1'),
     tokenProvider: tokenStore.readToken,
@@ -292,7 +304,10 @@ YawApp _appWithToken(
 
   return YawApp(
     authController: AuthController(
-      repository: AuthRepository(apiClient: apiClient),
+      repository: AuthRepository(
+        apiClient: apiClient,
+        workosBrowser: _WidgetWorkosBrowser(() => _lastWidgetWorkosState),
+      ),
       tokenStore: tokenStore,
     ),
     aircraftController: AircraftController(
@@ -309,6 +324,20 @@ YawApp _appWithToken(
 }
 
 Future<http.Response> _defaultHandler(http.Request request) async {
+  if (request.url.path.endsWith('/auth/workos/authorize')) {
+    final body = jsonDecode(request.body) as Map<String, dynamic>;
+    _lastWidgetWorkosState = body['state'] as String;
+    return _ok({
+      'authorization_url': 'https://api.workos.com/user_management/authorize',
+      'redirect_uri': 'za.co.vmt.yaw://auth/callback',
+    });
+  }
+  if (request.url.path.endsWith('/auth/workos/exchange')) {
+    return _ok({
+      'access_token': 'plain-token',
+      'user': {'id': 11, 'name': 'Yaw Pilot', 'email': 'pilot@yaw.test'},
+    });
+  }
   if (request.url.path.endsWith('/auth/login')) {
     return _ok({
       'token_type': 'Bearer',
@@ -362,6 +391,25 @@ Future<http.Response> _defaultHandler(http.Request request) async {
   }
 
   return _error('not_found', 'Not found.', 404);
+}
+
+String _lastWidgetWorkosState = '';
+
+class _WidgetWorkosBrowser implements WorkosBrowser {
+  const _WidgetWorkosBrowser(this.stateProvider);
+  final String Function() stateProvider;
+
+  @override
+  Future<String> authenticate(String url, String callbackScheme) async {
+    final state = stateProvider();
+    if (state.isEmpty) {
+      throw const ApiException(
+        type: ApiExceptionType.validation,
+        message: 'Sign-in could not be started.',
+      );
+    }
+    return '$callbackScheme://auth/callback?state=$state&code=widget-code';
+  }
 }
 
 class TestApp extends StatelessWidget {
