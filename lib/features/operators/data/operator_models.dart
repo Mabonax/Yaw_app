@@ -19,6 +19,8 @@ class OperatorMembership {
 
   bool get isActive => status == 'active';
   bool get isPending => status == 'pending';
+  bool get isInvitation => isPending && source == 'invitation';
+  bool get isJoinRequest => isPending && source == 'join_request';
 
   factory OperatorMembership.fromJson(Map<String, Object?> json) {
     final operator = _map(json['operator']);
