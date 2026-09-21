@@ -8,6 +8,7 @@ import '../../../core/widgets/yaw_widgets.dart';
 import '../../aircraft/presentation/aircraft_controller.dart';
 import '../../aircraft/presentation/aircraft_screens.dart';
 import '../../dashboard/presentation/home_dashboard_screen.dart';
+import '../../dashboard/presentation/personal_pilot_dashboard_screen.dart';
 import '../../missions/presentation/mission_controller.dart';
 import '../../missions/presentation/mission_screens.dart';
 import '../../operators/presentation/operator_workspace_controller.dart';
@@ -129,28 +130,37 @@ class _AppShellState extends State<AppShell> {
                   ),
                 ),
               Expanded(
-                child: [
-                  HomeDashboardScreen(
-                    onNavigate: (index) => setState(() => _selectedIndex = index),
-                    authController: widget.authController,
-                    aircraftController: widget.aircraftController,
-                    missionController: widget.missionController,
-                  ),
-                  MissionListScreen(
-                    controller: widget.missionController,
-                    aircraftController: widget.aircraftController,
-                  ),
-                  AircraftListScreen(controller: widget.aircraftController),
-                  MissionComplianceOverviewScreen(
-                    missionController: widget.missionController,
-                    aircraftController: widget.aircraftController,
-                  ),
-                  MoreScreen(authController: widget.authController),
-                ][_selectedIndex],
+                child: workspace.activeOperatorId == null
+                    ? PersonalPilotDashboardScreen(
+                        authController: widget.authController,
+                        operatorWorkspaceController: widget.operatorWorkspaceController,
+                        onWorkspaceChanged: () {
+                          Navigator.of(context).popUntil((route) => route.isFirst);
+                          setState(() => _selectedIndex = 0);
+                        },
+                      )
+                    : [
+                        HomeDashboardScreen(
+                          onNavigate: (index) => setState(() => _selectedIndex = index),
+                          authController: widget.authController,
+                          aircraftController: widget.aircraftController,
+                          missionController: widget.missionController,
+                        ),
+                        MissionListScreen(
+                          controller: widget.missionController,
+                          aircraftController: widget.aircraftController,
+                        ),
+                        AircraftListScreen(controller: widget.aircraftController),
+                        MissionComplianceOverviewScreen(
+                          missionController: widget.missionController,
+                          aircraftController: widget.aircraftController,
+                        ),
+                        MoreScreen(authController: widget.authController),
+                      ][_selectedIndex],
               ),
             ],
           ),
-          bottomNavigationBar: YawBottomNavigation(
+          bottomNavigationBar: workspace.activeOperatorId == null ? null : YawBottomNavigation(
             index: _selectedIndex,
             onChanged: (index) => setState(() => _selectedIndex = index),
           ),
