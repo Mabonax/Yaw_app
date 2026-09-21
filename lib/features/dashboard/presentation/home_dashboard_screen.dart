@@ -50,7 +50,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
       if (pilot == null) {
         _info(
           'Pilot Profile',
-          'Your account does not have a pilot profile yet. Contact your operator to complete your profile.',
+          'Your account does not have a linked pilot profile yet.',
         );
         return;
       }
