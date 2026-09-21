@@ -88,6 +88,22 @@ class _AppShellState extends State<AppShell> {
                 ),
           body: Column(
             children: [
+              if (workspace.activeOperatorName == null)
+                Material(
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                  child: InkWell(
+                    onTap: _switchWorkspace,
+                    child: const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      child: Row(children: [
+                        Icon(Icons.person_outline, size: 18),
+                        SizedBox(width: 8),
+                        Expanded(child: Text('Personal pilot mode')),
+                        Icon(Icons.swap_horiz, size: 18),
+                      ]),
+                    ),
+                  ),
+                ),
               if (workspace.activeOperatorName != null)
                 Material(
                   color: Theme.of(context).colorScheme.surfaceContainerHighest,
