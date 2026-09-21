@@ -11,6 +11,8 @@ import '../../features/onboarding/data/registration_draft.dart';
 import '../../features/onboarding/presentation/pilot_setup_flow.dart';
 import '../../features/missions/presentation/mission_controller.dart';
 import '../../features/shell/presentation/app_shell.dart';
+import '../../features/operators/presentation/operator_workspace_controller.dart';
+import '../../features/operators/presentation/operator_workspace_screen.dart';
 
 class YawRouter extends StatefulWidget {
   const YawRouter({
@@ -18,11 +20,13 @@ class YawRouter extends StatefulWidget {
     required this.authController,
     required this.aircraftController,
     required this.missionController,
+    required this.operatorWorkspaceController,
   });
 
   final AuthController authController;
   final AircraftController aircraftController;
   final MissionController missionController;
+  final OperatorWorkspaceController operatorWorkspaceController;
 
   @override
   State<YawRouter> createState() => _YawRouterState();
@@ -39,6 +43,7 @@ class _YawRouterState extends State<YawRouter> {
   int _sessionNumber = 0;
   AircraftController? _sessionAircraft;
   MissionController? _sessionMissions;
+  bool _workspaceLoaded = false;
 
   void _syncSession() {
     final state = widget.authController.state;
@@ -54,6 +59,12 @@ class _YawRouterState extends State<YawRouter> {
     _sessionMissions = userId == null
         ? null
         : widget.missionController.forSession();
+    _workspaceLoaded = false;
+    if (userId != null) {
+      widget.operatorWorkspaceController.load().then((_) {
+        if (mounted) setState(() => _workspaceLoaded = true);
+      });
+    }
   }
 
   @override
@@ -80,16 +91,31 @@ class _YawRouterState extends State<YawRouter> {
 
         return switch (state.status) {
           AuthStatus.bootstrapping => const SplashScreen(),
-          AuthStatus.authenticated => Navigator(
-            key: ValueKey(_sessionNumber),
-            onGenerateRoute: (_) => MaterialPageRoute<void>(
-              builder: (_) => AppShell(
-                authController: widget.authController,
-                aircraftController: _sessionAircraft!,
-                missionController: _sessionMissions!,
-              ),
-            ),
-          ),
+          AuthStatus.authenticated => !_workspaceLoaded
+              ? const SplashScreen()
+              : ListenableBuilder(
+                  listenable: widget.operatorWorkspaceController,
+                  builder: (context, _) {
+                    final workspace = widget.operatorWorkspaceController.state;
+                    if (workspace.status == OperatorWorkspaceStatus.selectionRequired) {
+                      return OperatorWorkspaceScreen(
+                        controller: widget.operatorWorkspaceController,
+                        onSelected: () => setState(() => _sessionNumber++),
+                      );
+                    }
+                    return Navigator(
+                      key: ValueKey(_sessionNumber),
+                      onGenerateRoute: (_) => MaterialPageRoute<void>(
+                        builder: (_) => AppShell(
+                          authController: widget.authController,
+                          aircraftController: _sessionAircraft!,
+                          missionController: _sessionMissions!,
+                          operatorWorkspaceController: widget.operatorWorkspaceController,
+                        ),
+                      ),
+                    );
+                  },
+                ),
           AuthStatus.failure || AuthStatus.unauthenticated =>
             switch (state.status == AuthStatus.failure &&
                     _entryScreen == _AuthEntryScreen.onboarding

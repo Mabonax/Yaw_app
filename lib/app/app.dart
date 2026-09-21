@@ -5,6 +5,9 @@ import '../core/auth/auth_controller.dart';
 import '../core/auth/auth_repository.dart';
 import '../core/config/app_config.dart';
 import '../core/storage/token_store.dart';
+import '../core/storage/operator_store.dart';
+import '../features/operators/data/operator_workspace_repository.dart';
+import '../features/operators/presentation/operator_workspace_controller.dart';
 import '../features/aircraft/data/aircraft_repository.dart';
 import '../features/aircraft/presentation/aircraft_controller.dart';
 import '../features/auth/presentation/auth_visuals.dart';
@@ -19,15 +22,21 @@ class YawApp extends StatelessWidget {
     required this.authController,
     required this.aircraftController,
     required this.missionController,
+    required this.operatorWorkspaceController,
   });
 
   factory YawApp.create() {
     final config = AppConfig.fromEnvironment();
     final tokenStore = SecureTokenStore();
+    final operatorStore = SecureOperatorStore();
     final apiClient = ApiClient(
       baseUrl: config.apiBaseUrl,
       tokenProvider: tokenStore.readToken,
-      onUnauthorized: tokenStore.clear,
+      operatorProvider: operatorStore.readOperatorId,
+      onUnauthorized: () async {
+        await tokenStore.clear();
+        await operatorStore.clear();
+      },
     );
 
     return YawApp(
@@ -41,12 +50,17 @@ class YawApp extends StatelessWidget {
       missionController: MissionController(
         repository: MissionRepository(apiClient: apiClient),
       ),
+      operatorWorkspaceController: OperatorWorkspaceController(
+        repository: OperatorWorkspaceRepository(apiClient: apiClient),
+        store: operatorStore,
+      ),
     );
   }
 
   final AuthController authController;
   final AircraftController aircraftController;
   final MissionController missionController;
+  final OperatorWorkspaceController operatorWorkspaceController;
 
   @override
   Widget build(BuildContext context) {
@@ -59,6 +73,7 @@ class YawApp extends StatelessWidget {
         authController: authController,
         aircraftController: aircraftController,
         missionController: missionController,
+        operatorWorkspaceController: operatorWorkspaceController,
       ),
     );
   }
