@@ -104,9 +104,13 @@ class OperatorWorkspaceController extends ChangeNotifier {
     await load();
   }
 
-  Future<void> clear() async {
+  Future<void> enterPersonalMode() async {
     await _store.clear();
-    _state = _state.copyWith(status: OperatorWorkspaceStatus.selectionRequired, clearActive: true);
+    _state = _state.copyWith(status: OperatorWorkspaceStatus.noOperator, clearActive: true, clearError: true);
     notifyListeners();
+  }
+
+  Future<void> clear() async {
+    await enterPersonalMode();
   }
 }
