@@ -59,4 +59,36 @@ void main() {
     expect(operator.displayName, 'Global Operator');
     expect(operator.isGlobal, isTrue);
   });
+  test('parses server-owned persona and readiness experience', () {
+    final experience = YawExperience.fromJson({
+      'persona': 'operator_manager',
+      'workspace': {'type': 'operator'},
+      'onboarding': {
+        'complete': false,
+        'percentage': 80,
+        'steps': [
+          {
+            'key': 'medical',
+            'label': 'Medical status',
+            'complete': false,
+            'blocking': true,
+            'action': '/my/compliance',
+          },
+        ],
+      },
+      'readiness': {'state': 'red', 'percentage': 80},
+      'capabilities': {
+        'missions': true,
+        'manage_operator': true,
+        'manage_platform': false,
+      },
+    });
+
+    expect(experience.persona, 'operator_manager');
+    expect(experience.workspaceType, 'operator');
+    expect(experience.readinessPercentage, 80);
+    expect(experience.steps.single.blocking, isTrue);
+    expect(experience.can('manage_operator'), isTrue);
+    expect(experience.can('manage_platform'), isFalse);
+  });
 }
