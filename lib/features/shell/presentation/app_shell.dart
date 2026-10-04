@@ -47,6 +47,7 @@ class _AppShellState extends State<AppShell> {
         ),
       ),
     );
+    await widget.authController.refreshIdentityContext();
     await Future.wait([
       widget.aircraftController.loadAircraft(refresh: true),
       widget.missionController.loadMissions(refresh: true),
@@ -59,6 +60,7 @@ class _AppShellState extends State<AppShell> {
       listenable: widget.operatorWorkspaceController,
       builder: (context, _) {
         final workspace = widget.operatorWorkspaceController.state;
+        final experience = widget.authController.state.experience;
         return Scaffold(
           backgroundColor: setupBackground,
           appBar: _selectedIndex == 0
@@ -89,6 +91,26 @@ class _AppShellState extends State<AppShell> {
                 ),
           body: Column(
             children: [
+              if (experience != null)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  color: Theme.of(context).colorScheme.surface,
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          experience.persona.replaceAll('_', ' ').toUpperCase(),
+                          style: Theme.of(context).textTheme.labelMedium,
+                        ),
+                      ),
+                      Text(
+                        'Readiness ${experience.readinessPercentage}%',
+                        style: Theme.of(context).textTheme.labelMedium,
+                      ),
+                    ],
+                  ),
+                ),
               if (workspace.activeOperatorName == null)
                 Material(
                   color: Theme.of(context).colorScheme.surfaceContainerHighest,
