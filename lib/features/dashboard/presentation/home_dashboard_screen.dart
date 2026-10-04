@@ -7,6 +7,7 @@ import '../../pilot/presentation/pilot_profile_screen.dart';
 import '../../onboarding/presentation/setup_widgets.dart';
 import '../../onboarding/data/registration_draft.dart';
 import 'dashboard_view.dart';
+import 'action_centre_screen.dart';
 
 class HomeDashboardScreen extends StatefulWidget {
   const HomeDashboardScreen({
@@ -205,9 +206,14 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
           ],
           onAction: _action,
           onAccount: _account,
-          onNotifications: () => _info(
-            'Notifications',
-            'Your notifications will appear here when the notification service is available.',
+          onNotifications: () => Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => ActionCentreScreen(
+                authController: widget.authController,
+                aircraftController: widget.aircraftController,
+                missionController: widget.missionController,
+              ),
+            ),
           ),
           onLearnMore: () => _info(
             'Smarter Operations. Safer Skies.',
