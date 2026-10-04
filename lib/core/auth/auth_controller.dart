@@ -18,6 +18,7 @@ class AuthState {
     this.isSubmitting = false,
     this.isContextLoading = false,
     this.contextErrorMessage,
+    this.experience,
   });
 
   const AuthState.bootstrapping() : this(status: AuthStatus.bootstrapping);
@@ -30,7 +31,7 @@ class AuthState {
   final Map<String, List<String>>? fieldErrors;
   final bool isSubmitting;
   final bool isContextLoading;
-  final String? contextErrorMessage;
+  final String? contextErrorMessage;\n  final YawExperience? experience;
 
   bool get isAuthenticated =>
       status == AuthStatus.authenticated && user != null;
@@ -47,6 +48,7 @@ class AuthState {
     bool? isSubmitting,
     bool? isContextLoading,
     String? contextErrorMessage,
+    YawExperience? experience,
     bool clearPilot = false,
     bool clearErrors = false,
   }) {
@@ -62,6 +64,7 @@ class AuthState {
       contextErrorMessage: clearErrors
           ? null
           : contextErrorMessage ?? this.contextErrorMessage,
+      experience: experience ?? this.experience,
     );
   }
 }
@@ -246,6 +249,7 @@ class AuthController extends ChangeNotifier {
       user: context.user,
       pilot: context.pilot,
       operators: context.operators,
+      experience: context.experience,
     );
   }
 

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/auth/auth_controller.dart';
+import '../../../core/auth/auth_models.dart';
 import '../../dashboard/presentation/dashboard_view.dart';
 import '../../onboarding/presentation/setup_widgets.dart';
 import '../../../core/branding/yaw_logo.dart';
@@ -38,6 +39,50 @@ class _AppShellState extends State<AppShell> {
 
   static const _titles = ['Home', 'Missions', 'Aircraft', 'Compliance', 'More'];
 
+  List<YawBottomNavItem> _navigationItems(YawExperience? experience) {
+    final items = <YawBottomNavItem>[
+      const YawBottomNavItem(
+        targetIndex: 0,
+        label: 'Home',
+        icon: Icons.home_outlined,
+        selectedIcon: Icons.home_rounded,
+      ),
+    ];
+
+    if (experience?.can('missions') == true) {
+      items.add(const YawBottomNavItem(
+        targetIndex: 1,
+        label: 'Missions',
+        icon: Icons.map_outlined,
+      ));
+    }
+
+    if (experience?.can('aircraft') == true) {
+      items.add(const YawBottomNavItem(
+        targetIndex: 2,
+        label: 'Aircraft',
+        icon: Icons.flight_outlined,
+        drone: true,
+      ));
+    }
+
+    if (experience?.can('manage_compliance') == true) {
+      items.add(const YawBottomNavItem(
+        targetIndex: 3,
+        label: 'Compliance',
+        icon: Icons.fact_check_outlined,
+      ));
+    }
+
+    items.add(const YawBottomNavItem(
+      targetIndex: 4,
+      label: 'More',
+      icon: Icons.menu,
+    ));
+
+    return items;
+  }
+
   Future<void> _switchWorkspace() async {
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
@@ -47,6 +92,7 @@ class _AppShellState extends State<AppShell> {
         ),
       ),
     );
+    await widget.authController.refreshIdentityContext();
     await Future.wait([
       widget.aircraftController.loadAircraft(refresh: true),
       widget.missionController.loadMissions(refresh: true),
@@ -59,6 +105,7 @@ class _AppShellState extends State<AppShell> {
       listenable: widget.operatorWorkspaceController,
       builder: (context, _) {
         final workspace = widget.operatorWorkspaceController.state;
+        final experience = widget.authController.state.experience;
         return Scaffold(
           backgroundColor: setupBackground,
           appBar: _selectedIndex == 0
@@ -89,6 +136,26 @@ class _AppShellState extends State<AppShell> {
                 ),
           body: Column(
             children: [
+              if (experience != null)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  color: Theme.of(context).colorScheme.surface,
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          experience.persona.replaceAll('_', ' ').toUpperCase(),
+                          style: Theme.of(context).textTheme.labelMedium,
+                        ),
+                      ),
+                      Text(
+                        'Readiness ${experience.readinessPercentage}%',
+                        style: Theme.of(context).textTheme.labelMedium,
+                      ),
+                    ],
+                  ),
+                ),
               if (workspace.activeOperatorName == null)
                 Material(
                   color: Theme.of(context).colorScheme.surfaceContainerHighest,
@@ -134,6 +201,8 @@ class _AppShellState extends State<AppShell> {
                     ? PersonalPilotDashboardScreen(
                         authController: widget.authController,
                         operatorWorkspaceController: widget.operatorWorkspaceController,
+                        aircraftController: widget.aircraftController,
+                        missionController: widget.missionController,
                         onWorkspaceChanged: () {
                           Navigator.of(context).popUntil((route) => route.isFirst);
                           setState(() => _selectedIndex = 0);
@@ -160,10 +229,13 @@ class _AppShellState extends State<AppShell> {
               ),
             ],
           ),
-          bottomNavigationBar: workspace.activeOperatorId == null ? null : YawBottomNavigation(
-            index: _selectedIndex,
-            onChanged: (index) => setState(() => _selectedIndex = index),
-          ),
+          bottomNavigationBar: workspace.activeOperatorId == null
+              ? null
+              : YawBottomNavigation(
+                  index: _selectedIndex,
+                  items: _navigationItems(experience),
+                  onChanged: (index) => setState(() => _selectedIndex = index),
+                ),
         );
       },
     );

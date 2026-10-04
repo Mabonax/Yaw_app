@@ -6,17 +6,24 @@ import '../../../core/widgets/yaw_widgets.dart';
 import '../../operators/presentation/operator_workspace_controller.dart';
 import '../../operators/presentation/operator_workspace_screen.dart';
 import '../../pilot/presentation/pilot_profile_screen.dart';
+import '../../aircraft/presentation/aircraft_controller.dart';
+import '../../missions/presentation/mission_controller.dart';
+import 'action_centre_screen.dart';
 
 class PersonalPilotDashboardScreen extends StatelessWidget {
   const PersonalPilotDashboardScreen({
     super.key,
     required this.authController,
     required this.operatorWorkspaceController,
+    required this.aircraftController,
+    required this.missionController,
     required this.onWorkspaceChanged,
   });
 
   final AuthController authController;
   final OperatorWorkspaceController operatorWorkspaceController;
+  final AircraftController aircraftController;
+  final MissionController missionController;
   final VoidCallback onWorkspaceChanged;
 
   @override
@@ -85,6 +92,24 @@ class PersonalPilotDashboardScreen extends StatelessWidget {
                   ),
                 ),
               ],
+            ),
+          ),
+          const SizedBox(height: YawSpacing.lg),
+          YawSectionCard(
+            title: 'Action Centre',
+            subtitle: 'Prioritised readiness actions for your personal aviation record.',
+            child: YawPrimaryButton(
+              label: 'Open Action Centre',
+              icon: Icons.notifications_active_outlined,
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => ActionCentreScreen(
+                    authController: authController,
+                    aircraftController: aircraftController,
+                    missionController: missionController,
+                  ),
+                ),
+              ),
             ),
           ),
           const SizedBox(height: YawSpacing.lg),

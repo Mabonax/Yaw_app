@@ -182,21 +182,20 @@ void main() {
       },
     );
 
-    test('release action is not implemented until API V1 exposes it', () async {
+    test('releases a mission through API V1', () async {
+      String? requestLine;
       final repository = MissionRepository(
-        apiClient: _client((request) async => _ok({'mission': missionJson()})),
+        apiClient: _client((request) async {
+          requestLine = '${request.method} ${request.url.path}';
+          return _ok({'mission': missionJson(status: 'green')});
+        }),
       );
 
-      await expectLater(
-        repository.releaseMission(9),
-        throwsA(
-          isA<ApiException>().having(
-            (error) => error.message,
-            'message',
-            contains('not exposed by API V1'),
-          ),
-        ),
-      );
+      final released = await repository.releaseMission(9);
+
+      expect(requestLine, 'POST /api/v1/missions/9/release');
+      expect(released.compliance.status, 'green');
+      expect(released.apiReleaseSupported, isTrue);
     });
   });
 
@@ -222,6 +221,8 @@ void main() {
       expect(controller.state.totalMissions, 1);
       expect(controller.state.warningMissions, 1);
       expect(controller.state.selectedMission?.compliance.status, 'green');
+      expect(controller.state.selectedMission?.journey.stages.first.key, 'planning');
+      expect(controller.state.selectedMission?.journey.currentStage, 'compliance');
     });
 
     test('supports empty and failure states', () async {
@@ -584,6 +585,40 @@ Map<String, Object?> missionJson({
     'release_gate_state': status,
     'release_gate_results': {'state': status, 'checks': []},
     'compliance': complianceJson(status: status),
+    'journey': {
+      'current_stage': lifecycle == 'completed' ? 'post_flight' : 'compliance',
+      'lifecycle_state': lifecycle,
+      'readiness': {
+        'status': status,
+        'label': status == 'green' ? 'Release ready' : 'Review before release',
+        'blocking_count': status == 'red' ? 1 : 0,
+        'warning_count': status == 'amber' ? 1 : 0,
+      },
+      'next_action': {
+        'stage': 'compliance',
+        'label': 'Compliance',
+        'summary': 'Review mission compliance.',
+        'action_href': '/missions/9#compliance',
+      },
+      'stages': [
+        {
+          'key': 'planning',
+          'label': 'Planning',
+          'status': 'green',
+          'summary': 'Mission plan captured.',
+          'blocking': false,
+          'action_href': '/missions/9',
+        },
+        {
+          'key': 'compliance',
+          'label': 'Compliance',
+          'status': status,
+          'summary': 'Compliance evaluated.',
+          'blocking': status == 'red',
+          'action_href': '/missions/9#compliance',
+        },
+      ],
+    },
     'post_flight_propagation': postFlightJson(
       canPropagate: lifecycle == 'completed',
     ),

@@ -59,4 +59,58 @@ void main() {
     expect(operator.displayName, 'Global Operator');
     expect(operator.isGlobal, isTrue);
   });
+  test('parses server-owned persona and readiness experience', () {
+    final experience = YawExperience.fromJson({
+      'persona': 'operator_manager',
+      'workspace': {'type': 'operator'},
+      'onboarding': {
+        'complete': false,
+        'percentage': 80,
+        'steps': [
+          {
+            'key': 'medical',
+            'label': 'Medical status',
+            'complete': false,
+            'blocking': true,
+            'action': '/my/compliance',
+          },
+        ],
+      },
+      'readiness': {'state': 'red', 'percentage': 80},
+      'capabilities': {
+        'missions': true,
+        'manage_operator': true,
+        'manage_platform': false,
+      },
+      'action_centre': {
+        'summary': {
+          'total': 2,
+          'critical': 1,
+          'warning': 1,
+          'info': 0,
+        },
+        'items': [
+          {
+            'key': 'mission.9.compliance',
+            'priority': 'critical',
+            'title': 'MIS-009: Compliance',
+            'summary': 'Release is blocked.',
+            'entity_type': 'mission',
+            'entity_id': 9,
+            'action_href': '/missions/9#compliance',
+          },
+        ],
+      },
+    });
+
+    expect(experience.persona, 'operator_manager');
+    expect(experience.workspaceType, 'operator');
+    expect(experience.readinessPercentage, 80);
+    expect(experience.steps.single.blocking, isTrue);
+    expect(experience.can('manage_operator'), isTrue);
+    expect(experience.can('manage_platform'), isFalse);
+    expect(experience.actionCentre.total, 2);
+    expect(experience.actionCentre.critical, 1);
+    expect(experience.actionCentre.items.single.entityType, 'mission');
+  });
 }

@@ -475,14 +475,40 @@ class DashboardView extends StatelessWidget {
   );
 }
 
+class YawBottomNavItem {
+  const YawBottomNavItem({
+    required this.targetIndex,
+    required this.label,
+    required this.icon,
+    this.selectedIcon,
+    this.drone = false,
+  });
+
+  final int targetIndex;
+  final String label;
+  final IconData icon;
+  final IconData? selectedIcon;
+  final bool drone;
+}
+
 class YawBottomNavigation extends StatelessWidget {
   const YawBottomNavigation({
     super.key,
     required this.index,
     required this.onChanged,
+    this.items = const [
+      YawBottomNavItem(targetIndex: 0, label: 'Home', icon: Icons.home_outlined, selectedIcon: Icons.home_rounded),
+      YawBottomNavItem(targetIndex: 1, label: 'Missions', icon: Icons.map_outlined),
+      YawBottomNavItem(targetIndex: 2, label: 'Aircraft', icon: Icons.flight_outlined, drone: true),
+      YawBottomNavItem(targetIndex: 3, label: 'Compliance', icon: Icons.fact_check_outlined),
+      YawBottomNavItem(targetIndex: 4, label: 'More', icon: Icons.menu),
+    ],
   });
+
   final int index;
   final ValueChanged<int> onChanged;
+  final List<YawBottomNavItem> items;
+
   @override
   Widget build(BuildContext context) => DecoratedBox(
     decoration: const BoxDecoration(
@@ -495,10 +521,10 @@ class YawBottomNavigation extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(10, 5, 10, 9),
         child: Row(
           children: [
-            for (var i = 0; i < 5; i++)
+            for (final item in items)
               Expanded(
                 child: InkWell(
-                  onTap: () => onChanged(i),
+                  onTap: () => onChanged(item.targetIndex),
                   child: Padding(
                     padding: const EdgeInsets.symmetric(vertical: 9),
                     child: Column(
@@ -506,44 +532,30 @@ class YawBottomNavigation extends StatelessWidget {
                       children: [
                         SizedBox(
                           height: 24,
-                          child: i == 2
+                          child: item.drone
                               ? DroneIcon(
                                   size: 27,
-                                  color: index == i ? setupBlue : setupMuted,
+                                  color: index == item.targetIndex ? setupBlue : setupMuted,
                                 )
                               : Icon(
-                                  [
-                                    index == 0
-                                        ? Icons.home_rounded
-                                        : Icons.home_outlined,
-                                    Icons.map_outlined,
-                                    Icons.flight_outlined,
-                                    Icons.fact_check_outlined,
-                                    Icons.menu,
-                                  ][i],
+                                  index == item.targetIndex ? item.selectedIcon ?? item.icon : item.icon,
                                   size: 22,
-                                  color: index == i ? setupBlue : setupMuted,
+                                  color: index == item.targetIndex ? setupBlue : setupMuted,
                                 ),
                         ),
                         const SizedBox(height: 5),
                         Text(
-                          [
-                            'Home',
-                            'Missions',
-                            'Aircraft',
-                            'Compliance',
-                            'More',
-                          ][i],
+                          item.label,
                           style: setupText(
                             8,
-                            color: index == i ? setupBlue : setupMuted,
+                            color: index == item.targetIndex ? setupBlue : setupMuted,
                           ),
                         ),
                         const SizedBox(height: 7),
                         Container(
                           height: 1.5,
                           width: 35,
-                          color: index == i ? setupBlue : Colors.transparent,
+                          color: index == item.targetIndex ? setupBlue : Colors.transparent,
                         ),
                       ],
                     ),

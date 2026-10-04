@@ -1,5 +1,4 @@
 import '../../../core/api/api_client.dart';
-import '../../../core/api/api_exception.dart';
 import 'mission_models.dart';
 import '../../aeronautical_information/data/briefing_models.dart';
 
@@ -78,11 +77,8 @@ class MissionRepository {
   }
 
   Future<YawMission> releaseMission(int id) async {
-    throw const ApiException(
-      type: ApiExceptionType.notFound,
-      message:
-          'Mission release is not exposed by API V1. The Laravel web route cannot be used by mobile.',
-    );
+    final response = await _apiClient.post('missions/$id/release');
+    return YawMission.fromJson(_asMap(response.data['mission']));
   }
 }
 
