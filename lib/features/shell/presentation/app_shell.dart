@@ -201,6 +201,8 @@ class _AppShellState extends State<AppShell> {
                     ? PersonalPilotDashboardScreen(
                         authController: widget.authController,
                         operatorWorkspaceController: widget.operatorWorkspaceController,
+                        aircraftController: widget.aircraftController,
+                        missionController: widget.missionController,
                         onWorkspaceChanged: () {
                           Navigator.of(context).popUntil((route) => route.isFirst);
                           setState(() => _selectedIndex = 0);
