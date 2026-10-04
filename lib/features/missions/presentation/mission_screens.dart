@@ -149,6 +149,8 @@ class MissionDetailScreen extends StatelessWidget {
               children: [
                 MissionHeaderCard(mission: current),
                 const SizedBox(height: YawSpacing.lg),
+                MissionJourneyCard(journey: current.journey),
+                const SizedBox(height: YawSpacing.lg),
                 MissionReleaseBanner(
                   mission: current,
                   compliance: compliance,
@@ -661,6 +663,101 @@ class MissionComplianceControlTile extends StatelessWidget {
         label: _format(control.status),
         tone: _toneForStatus(control.status),
       ),
+    );
+  }
+}
+
+
+class MissionJourneyCard extends StatelessWidget {
+  const MissionJourneyCard({super.key, required this.journey});
+
+  final YawMissionJourney journey;
+
+  @override
+  Widget build(BuildContext context) {
+    return YawSectionCard(
+      title: 'Mission journey',
+      subtitle: 'Planning through post-flight, evaluated by the YAW server.',
+      child: Column(
+        children: [
+          for (var index = 0; index < journey.stages.length; index++) ...[
+            _MissionJourneyStageTile(
+              stage: journey.stages[index],
+              isCurrent: journey.currentStage == journey.stages[index].key,
+            ),
+            if (index < journey.stages.length - 1)
+              const Padding(
+                padding: EdgeInsets.only(left: 19),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: SizedBox(
+                    height: 20,
+                    child: VerticalDivider(width: 1),
+                  ),
+                ),
+              ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _MissionJourneyStageTile extends StatelessWidget {
+  const _MissionJourneyStageTile({
+    required this.stage,
+    required this.isCurrent,
+  });
+
+  final YawMissionJourneyStage stage;
+  final bool isCurrent;
+
+  @override
+  Widget build(BuildContext context) {
+    final tone = _toneForStatus(stage.status);
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(
+          stage.status == 'green'
+              ? Icons.check_circle
+              : stage.status == 'red'
+                  ? Icons.error
+                  : stage.status == 'amber'
+                      ? Icons.warning_amber
+                      : Icons.radio_button_unchecked,
+          color: isCurrent ? YawColors.aviationBlue : null,
+        ),
+        const SizedBox(width: YawSpacing.md),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      stage.label,
+                      style: Theme.of(context).textTheme.titleSmall,
+                    ),
+                  ),
+                  YawStatusChip(
+                    label: isCurrent ? 'Current' : _format(stage.status),
+                    tone: isCurrent ? YawStatusTone.info : tone,
+                  ),
+                ],
+              ),
+              const SizedBox(height: YawSpacing.xs),
+              Text(
+                stage.summary,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: YawColors.textMuted,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
