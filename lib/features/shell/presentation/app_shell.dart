@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/auth/auth_controller.dart';
+import '../../../core/auth/auth_models.dart';
 import '../../dashboard/presentation/dashboard_view.dart';
 import '../../onboarding/presentation/setup_widgets.dart';
 import '../../../core/branding/yaw_logo.dart';
@@ -37,6 +38,50 @@ class _AppShellState extends State<AppShell> {
   int _selectedIndex = 0;
 
   static const _titles = ['Home', 'Missions', 'Aircraft', 'Compliance', 'More'];
+
+  List<YawBottomNavItem> _navigationItems(YawExperience? experience) {
+    final items = <YawBottomNavItem>[
+      const YawBottomNavItem(
+        targetIndex: 0,
+        label: 'Home',
+        icon: Icons.home_outlined,
+        selectedIcon: Icons.home_rounded,
+      ),
+    ];
+
+    if (experience?.can('missions') == true) {
+      items.add(const YawBottomNavItem(
+        targetIndex: 1,
+        label: 'Missions',
+        icon: Icons.map_outlined,
+      ));
+    }
+
+    if (experience?.can('aircraft') == true) {
+      items.add(const YawBottomNavItem(
+        targetIndex: 2,
+        label: 'Aircraft',
+        icon: Icons.flight_outlined,
+        drone: true,
+      ));
+    }
+
+    if (experience?.can('manage_compliance') == true) {
+      items.add(const YawBottomNavItem(
+        targetIndex: 3,
+        label: 'Compliance',
+        icon: Icons.fact_check_outlined,
+      ));
+    }
+
+    items.add(const YawBottomNavItem(
+      targetIndex: 4,
+      label: 'More',
+      icon: Icons.menu,
+    ));
+
+    return items;
+  }
 
   Future<void> _switchWorkspace() async {
     await Navigator.of(context).push(
@@ -182,10 +227,13 @@ class _AppShellState extends State<AppShell> {
               ),
             ],
           ),
-          bottomNavigationBar: workspace.activeOperatorId == null ? null : YawBottomNavigation(
-            index: _selectedIndex,
-            onChanged: (index) => setState(() => _selectedIndex = index),
-          ),
+          bottomNavigationBar: workspace.activeOperatorId == null
+              ? null
+              : YawBottomNavigation(
+                  index: _selectedIndex,
+                  items: _navigationItems(experience),
+                  onChanged: (index) => setState(() => _selectedIndex = index),
+                ),
         );
       },
     );
