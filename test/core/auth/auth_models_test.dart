@@ -82,6 +82,25 @@ void main() {
         'manage_operator': true,
         'manage_platform': false,
       },
+      'action_centre': {
+        'summary': {
+          'total': 2,
+          'critical': 1,
+          'warning': 1,
+          'info': 0,
+        },
+        'items': [
+          {
+            'key': 'mission.9.compliance',
+            'priority': 'critical',
+            'title': 'MIS-009: Compliance',
+            'summary': 'Release is blocked.',
+            'entity_type': 'mission',
+            'entity_id': 9,
+            'action_href': '/missions/9#compliance',
+          },
+        ],
+      },
     });
 
     expect(experience.persona, 'operator_manager');
@@ -90,5 +109,8 @@ void main() {
     expect(experience.steps.single.blocking, isTrue);
     expect(experience.can('manage_operator'), isTrue);
     expect(experience.can('manage_platform'), isFalse);
+    expect(experience.actionCentre.total, 2);
+    expect(experience.actionCentre.critical, 1);
+    expect(experience.actionCentre.items.single.entityType, 'mission');
   });
 }
