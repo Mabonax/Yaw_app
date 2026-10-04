@@ -155,10 +155,41 @@ class AuthRepository {
   }
 
   Future<IdentityContext> loadIdentityContext() async {
-    final user = await currentUser();
-    final pilot = await currentPilot();
-    final operators = await currentOperators();
+    final response = await _apiClient.get('me/bootstrap');
+    final data = response.data;
 
-    return IdentityContext(user: user, pilot: pilot, operators: operators);
+    final userJson = data['user'];
+    final pilotJson = data['pilot'];
+    final operatorJson = data['operators'];
+    final experienceJson = data['experience'];
+
+    if (userJson is! Map || operatorJson is! List || experienceJson is! Map) {
+      throw const FormatException('Unexpected bootstrap payload.');
+    }
+
+    final user = YawUser.fromJson(
+      userJson.map((key, value) => MapEntry(key.toString(), value)),
+    );
+    final pilot = pilotJson is Map
+        ? YawPilotProfile.fromJson(
+            pilotJson.map((key, value) => MapEntry(key.toString(), value)),
+          )
+        : null;
+    final operators = operatorJson
+        .whereType<Map>()
+        .map((item) => YawOperatorContext.fromJson(
+              item.map((key, value) => MapEntry(key.toString(), value)),
+            ))
+        .toList(growable: false);
+    final experience = YawExperience.fromJson(
+      experienceJson.map((key, value) => MapEntry(key.toString(), value)),
+    );
+
+    return IdentityContext(
+      user: user,
+      pilot: pilot,
+      operators: operators,
+      experience: experience,
+    );
   }
 }
