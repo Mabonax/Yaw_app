@@ -59,6 +59,7 @@ class YawMission {
     this.releaseGateState,
     required this.releaseGateResults,
     required this.compliance,
+    required this.journey,
     this.postFlightPropagation,
     this.regulatorySource,
     this.regulatorySourceVersion,
@@ -100,6 +101,7 @@ class YawMission {
   final String? releaseGateState;
   final Map<String, Object?> releaseGateResults;
   final YawMissionCompliance compliance;
+  final YawMissionJourney journey;
   final YawPostFlightPropagation? postFlightPropagation;
   final String? regulatorySource;
   final String? regulatorySourceVersion;
@@ -118,7 +120,7 @@ class YawMission {
     return parts.isEmpty ? lifecycleStatus.label : parts.join(' · ');
   }
 
-  bool get apiReleaseSupported => false;
+  bool get apiReleaseSupported => true;
 
   factory YawMission.fromJson(Map<String, Object?> json) {
     return YawMission(
@@ -158,6 +160,7 @@ class YawMission {
       releaseGateState: _asString(json['release_gate_state']),
       releaseGateResults: _asMap(json['release_gate_results']),
       compliance: YawMissionCompliance.fromJson(_asMap(json['compliance'])),
+      journey: YawMissionJourney.fromJson(_asMap(json['journey'])),
       postFlightPropagation: _optionalMap(
         json['post_flight_propagation'],
         YawPostFlightPropagation.fromJson,
@@ -170,6 +173,62 @@ class YawMission {
       createdAt: _asString(json['created_at']),
     );
   }
+}
+
+
+class YawMissionJourney {
+  const YawMissionJourney({
+    this.currentStage,
+    this.lifecycleState,
+    required this.readiness,
+    this.nextAction,
+    required this.stages,
+  });
+
+  factory YawMissionJourney.fromJson(Map<String, Object?> json) {
+    return YawMissionJourney(
+      currentStage: _asString(json['current_stage']),
+      lifecycleState: _asString(json['lifecycle_state']),
+      readiness: _asMap(json['readiness']),
+      nextAction: json['next_action'] is Map ? _asMap(json['next_action']) : null,
+      stages: _mapList(json['stages'], YawMissionJourneyStage.fromJson),
+    );
+  }
+
+  final String? currentStage;
+  final String? lifecycleState;
+  final Map<String, Object?> readiness;
+  final Map<String, Object?>? nextAction;
+  final List<YawMissionJourneyStage> stages;
+}
+
+class YawMissionJourneyStage {
+  const YawMissionJourneyStage({
+    required this.key,
+    required this.label,
+    required this.status,
+    required this.summary,
+    required this.blocking,
+    this.actionHref,
+  });
+
+  factory YawMissionJourneyStage.fromJson(Map<String, Object?> json) {
+    return YawMissionJourneyStage(
+      key: _asString(json['key']) ?? '',
+      label: _asString(json['label']) ?? '',
+      status: _asString(json['status']) ?? 'pending',
+      summary: _asString(json['summary']) ?? '',
+      blocking: json['blocking'] == true,
+      actionHref: _asString(json['action_href']),
+    );
+  }
+
+  final String key;
+  final String label;
+  final String status;
+  final String summary;
+  final bool blocking;
+  final String? actionHref;
 }
 
 class YawMissionOperator {
