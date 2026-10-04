@@ -259,9 +259,11 @@ class IdentityContext {
     required this.user,
     required this.pilot,
     required this.operators,
+    required this.experience,
   });
 
   final YawUser user;
   final YawPilotProfile? pilot;
   final List<YawOperatorContext> operators;
+  final YawExperience experience;
 }
