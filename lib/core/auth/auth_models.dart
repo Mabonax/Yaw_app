@@ -162,6 +162,91 @@ class YawOperatorContext {
   bool get isGlobal => membershipStatus == 'global';
 }
 
+
+class YawJourneyStep {
+  const YawJourneyStep({
+    required this.key,
+    required this.label,
+    required this.complete,
+    required this.blocking,
+    this.action,
+  });
+
+  factory YawJourneyStep.fromJson(Map<String, Object?> json) => YawJourneyStep(
+    key: json['key'] as String? ?? '',
+    label: json['label'] as String? ?? '',
+    complete: json['complete'] as bool? ?? false,
+    blocking: json['blocking'] as bool? ?? false,
+    action: json['action'] as String?,
+  );
+
+  final String key;
+  final String label;
+  final bool complete;
+  final bool blocking;
+  final String? action;
+}
+
+class YawExperience {
+  const YawExperience({
+    required this.persona,
+    required this.workspaceType,
+    required this.onboardingComplete,
+    required this.onboardingPercentage,
+    required this.readinessState,
+    required this.readinessPercentage,
+    required this.steps,
+    required this.capabilities,
+  });
+
+  factory YawExperience.fromJson(Map<String, Object?> json) {
+    final workspace = _map(json['workspace']);
+    final onboarding = _map(json['onboarding']);
+    final readiness = _map(json['readiness']);
+    final rawSteps = onboarding['steps'];
+    final rawCapabilities = _map(json['capabilities']);
+
+    return YawExperience(
+      persona: json['persona'] as String? ?? 'new_user',
+      workspaceType: workspace['type'] as String? ?? 'personal',
+      onboardingComplete: onboarding['complete'] as bool? ?? false,
+      onboardingPercentage: (onboarding['percentage'] as num?)?.toInt() ?? 0,
+      readinessState: readiness['state'] as String? ?? 'red',
+      readinessPercentage: (readiness['percentage'] as num?)?.toInt() ?? 0,
+      steps: rawSteps is List
+          ? rawSteps
+              .whereType<Map>()
+              .map((item) => YawJourneyStep.fromJson(
+                    item.map((key, value) => MapEntry(key.toString(), value)),
+                  ))
+              .toList(growable: false)
+          : const [],
+      capabilities: rawCapabilities.map(
+        (key, value) => MapEntry(key, value == true),
+      ),
+    );
+  }
+
+  final String persona;
+  final String workspaceType;
+  final bool onboardingComplete;
+  final int onboardingPercentage;
+  final String readinessState;
+  final int readinessPercentage;
+  final List<YawJourneyStep> steps;
+  final Map<String, bool> capabilities;
+
+  bool can(String capability) => capabilities[capability] == true;
+
+  static Map<String, Object?> _map(Object? value) {
+    if (value is Map<String, Object?>) return value;
+    if (value is Map) {
+      return value.map((key, item) => MapEntry(key.toString(), item));
+    }
+    return const {};
+  }
+}
+
 class AuthSession {
   const AuthSession({required this.token, required this.user});
 
