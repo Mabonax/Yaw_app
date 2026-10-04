@@ -30,7 +30,7 @@ class AuthState {
   final Map<String, List<String>>? fieldErrors;
   final bool isSubmitting;
   final bool isContextLoading;
-  final String? contextErrorMessage;
+  final String? contextErrorMessage;\n  final YawExperience? experience;
 
   bool get isAuthenticated =>
       status == AuthStatus.authenticated && user != null;
