@@ -7,6 +7,7 @@ import '../../aircraft/presentation/aircraft_screens.dart';
 import '../data/mission_models.dart';
 import 'mission_controller.dart';
 import '../../aeronautical_information/presentation/briefing_screen.dart';
+import '../../dashboard/presentation/operator_action_centre_screen.dart';
 
 class MissionListScreen extends StatefulWidget {
   const MissionListScreen({
@@ -272,6 +273,20 @@ class _MissionComplianceOverviewScreenState
                 subtitle:
                     'Server-provided mission compliance and aircraft readiness summaries.',
               ),
+              const SizedBox(height: YawSpacing.md),
+              YawPrimaryButton(
+                label: 'Open Action Centre',
+                icon: Icons.notifications_active_outlined,
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => OperatorActionCentreScreen(
+                      aircraftController: widget.aircraftController,
+                      missionController: widget.missionController,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: YawSpacing.lg),
               MissionSummaryStrip(state: missionState),
               const SizedBox(height: YawSpacing.lg),
               YawSectionCard(
