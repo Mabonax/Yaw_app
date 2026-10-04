@@ -182,21 +182,20 @@ void main() {
       },
     );
 
-    test('release action is not implemented until API V1 exposes it', () async {
+    test('releases a mission through API V1', () async {
+      String? requestLine;
       final repository = MissionRepository(
-        apiClient: _client((request) async => _ok({'mission': missionJson()})),
+        apiClient: _client((request) async {
+          requestLine = '${request.method} ${request.url.path}';
+          return _ok({'mission': missionJson(status: 'green')});
+        }),
       );
 
-      await expectLater(
-        repository.releaseMission(9),
-        throwsA(
-          isA<ApiException>().having(
-            (error) => error.message,
-            'message',
-            contains('not exposed by API V1'),
-          ),
-        ),
-      );
+      final released = await repository.releaseMission(9);
+
+      expect(requestLine, 'POST /api/v1/missions/9/release');
+      expect(released.compliance.status, 'green');
+      expect(released.apiReleaseSupported, isTrue);
     });
   });
 
