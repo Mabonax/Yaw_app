@@ -21,3 +21,14 @@ Flutter does not decide aviation permissions or readiness locally. The backend o
 3. Capability-driven bottom navigation.
 4. Mission journey workspace: planning → crew → aircraft → airspace → compliance → release → flight → post-flight.
 5. Notification centre and expiry/action inbox.
+
+
+## Mission journey workspace slice
+
+Mission detail now renders the server-owned chronological mission journey:
+
+Planning → Crew → Aircraft → Airspace → Risk → Compliance → Release → Flight → Post-flight.
+
+Flutter parses this from the mission detail contract rather than deriving aviation state locally.
+
+Mobile mission release is now connected to `POST /api/v1/missions/{mission}/release`; the existing Laravel release action remains authoritative for all release gates and audit evidence.
