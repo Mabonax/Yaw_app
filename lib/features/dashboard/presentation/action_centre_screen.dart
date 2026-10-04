@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../app/theme/yaw_tokens.dart';
 import '../../../core/auth/auth_controller.dart';
+import '../../../core/auth/auth_models.dart';
 import '../../../core/widgets/yaw_widgets.dart';
 import '../../aircraft/presentation/aircraft_controller.dart';
 import '../../missions/presentation/mission_controller.dart';
