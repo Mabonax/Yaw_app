@@ -79,49 +79,20 @@ class ActionCentreScreen extends StatelessWidget {
   }
 
   List<_ActionItem> _items() {
-    final items = <_ActionItem>[];
-    final experience = authController.state.experience;
+    final serverItems = authController.state.experience?.actionCentre.items ?? const <YawActionItem>[];
 
-    if (experience != null) {
-      for (final step in experience.steps.where((step) => !step.complete)) {
-        items.add(_ActionItem(
-          title: step.label,
-          summary: step.blocking
-              ? 'Required before operational readiness can be established.'
-              : 'Recommended onboarding action.',
-          priority: step.blocking ? _ActionPriority.critical : _ActionPriority.warning,
-          entity: 'Pilot / account',
-        ));
-      }
-    }
-
-    for (final mission in missionController.state.missions) {
-      final next = mission.journey.nextAction;
-      if (next == null) continue;
-      final status = mission.journey.readiness['status']?.toString();
-      items.add(_ActionItem(
-        title: '${mission.displayTitle}: ${next['label'] ?? 'Mission action'}',
-        summary: next['summary']?.toString() ?? mission.compliance.label ?? 'Mission review required.',
-        priority: status == 'red' ? _ActionPriority.critical : _ActionPriority.warning,
-        entity: 'Mission',
-      ));
-    }
-
-    for (final aircraft in aircraftController.state.aircraft) {
-      final readiness = aircraft.readiness;
-      if (readiness == null) continue;
-      for (final check in readiness.checks.where((check) => check.status == 'red' || check.status == 'amber')) {
-        items.add(_ActionItem(
-          title: '${aircraft.registration ?? aircraft.displayName}: ${check.label ?? 'Readiness'}',
-          summary: check.summary ?? 'Aircraft readiness requires review.',
-          priority: check.status == 'red' ? _ActionPriority.critical : _ActionPriority.warning,
-          entity: 'Aircraft',
-        ));
-      }
-    }
-
-    items.sort((a, b) => a.priority.index.compareTo(b.priority.index));
-    return items;
+    return serverItems
+        .map((item) => _ActionItem(
+              title: item.title,
+              summary: item.summary,
+              priority: switch (item.priority) {
+                'critical' => _ActionPriority.critical,
+                'warning' => _ActionPriority.warning,
+                _ => _ActionPriority.info,
+              },
+              entity: item.entityType.replaceAll('_', ' '),
+            ))
+        .toList(growable: false);
   }
 }
 
